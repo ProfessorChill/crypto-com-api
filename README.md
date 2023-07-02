@@ -41,29 +41,28 @@ This is a mainly incomplete feature as I saw Websocket to be of more importance.
 
 REST will be completed at a later date as some of the routes are fairly necessary.
 
-| Feature                          | Status             |
-| -------------------------------- | ------------------ |
-| `public/auth`                    | :x:                |
-| `public/get-instruments`         | :white_check_mark: |
-| `public/get-book`                | :white_check_mark: |
-| `public/get-candlestick`         | :white_check_mark: |
-| `public/get-ticker`              | :white_check_mark: |
-| `public/get-trades`              | :white_check_mark: |
-| `private/create-withdrawal`      | :x:                |
-| `private/get-currency-networks`  | :x:                |
-| `private/get-withdrawal-history` | :x:                |
-| `private/get-deposit-history`    | :x:                |
-| `private/get-deposit-address`    | :x:                |
-| `private/get-account-summary`    | :x:                |
-| `private/create-order`           | :x:                |
-| `private/cancel-order`           | :x:                |
-| `private/create-order-list`      | :x:                |
-| `private/cancel-order-list`      | :x:                |
-| `private/cancel-all-orders`      | :x:                |
-| `private/get-order-history`      | :x:                |
-| `private/get-open-orders`        | :x:                |
-| `private/get-order-detail`       | :x:                |
-| `private/get-trades`             | :x:                |
+| Feature                          | Status             | Reason |
+| -------------------------------- | ------------------ | ------ |
+| `public/get-instruments`         | :white_check_mark: |        |
+| `public/get-book`                | :white_check_mark: |        |
+| `public/get-candlestick`         | :white_check_mark: |        |
+| `public/get-ticker`              | :white_check_mark: |        |
+| `public/get-trades`              | :white_check_mark: |        |
+| `private/create-withdrawal`      | :warning:          | Requires the tester to pay per test. |
+| `private/get-currency-networks`  | :x:                |        |
+| `private/get-withdrawal-history` | :x:                |        |
+| `private/get-deposit-history`    | :x:                |        |
+| `private/get-deposit-address`    | :x:                |        |
+| `private/get-account-summary`    | :x:                |        |
+| `private/create-order`           | :x:                |        |
+| `private/cancel-order`           | :x:                |        |
+| `private/create-order-list`      | :x:                |        |
+| `private/cancel-order-list`      | :x:                |        |
+| `private/cancel-all-orders`      | :x:                |        |
+| `private/get-order-history`      | :x:                |        |
+| `private/get-open-orders`        | :x:                |        |
+| `private/get-order-detail`       | :x:                |        |
+| `private/get-trades`             | :x:                |        |
 
 ## Usage
 
