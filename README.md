@@ -67,7 +67,7 @@ REST will be completed at a later date as some of the routes are fairly necessar
 
 ## Usage
 
-This library is very early in development and should only be used as a proof as concept right now.
+This library is very early in development and should only be used as a proof of concept right now.
 
 With that said, refer to `tests` to see examples of usage until `examples` are created.
 
@@ -90,7 +90,7 @@ value from a websocket response the thread would never crash and it would foreve
 without handling the error.
 
 Make `process_user` and `process_market` exit the thread upon encountering a critical error instead
-of simply waiting for the next peice of data from the stream and only storing the error to be mapped
+of simply waiting for the next piece of data from the stream and only storing the error to be mapped
 after the thread closes.
 
 Add proper error handling to types, as an example, in `src/websocket/data/book.rs` we use
