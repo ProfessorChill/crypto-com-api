@@ -2,6 +2,8 @@
 
 use serde::Deserialize;
 
+use crate::prelude::ApiError;
+
 /// The raw OTC Book data response.
 ///
 /// Level: (
@@ -36,48 +38,35 @@ pub struct OtcBook {
     pub asks: Vec<(f64, u64, u64, u64, u64)>,
 }
 
-impl From<&RawOtcBook> for OtcBook {
-    fn from(value: &RawOtcBook) -> Self {
-        Self {
-            bids: value
-                .bids
-                .iter()
-                .map(|bid| {
-                    (
-                        bid.0
-                            .parse::<f64>()
-                            .expect("Failed to parse price of the level"),
-                        bid.1
-                            .parse::<u64>()
-                            .expect("Failed to parse total size of the level"),
-                        bid.2
-                            .parse::<u64>()
-                            .expect("Failed to parse number of standing orders in the level"),
-                        bid.3,
-                        bid.4,
-                    )
-                })
-                .collect::<Vec<(f64, u64, u64, u64, u64)>>(),
-            asks: value
-                .asks
-                .iter()
-                .map(|ask| {
-                    (
-                        ask.0
-                            .parse::<f64>()
-                            .expect("Failed to parse price of the level"),
-                        ask.1
-                            .parse::<u64>()
-                            .expect("Failed to parse total size of the level"),
-                        ask.2
-                            .parse::<u64>()
-                            .expect("Failed to parse number of standing orders in the level"),
-                        ask.3,
-                        ask.4,
-                    )
-                })
-                .collect::<Vec<(f64, u64, u64, u64, u64)>>(),
+impl TryFrom<&RawOtcBook> for OtcBook {
+    type Error = ApiError;
+
+    fn try_from(value: &RawOtcBook) -> Result<Self, Self::Error> {
+        let mut bids = vec![];
+
+        for bid in &value.bids {
+            bids.push((
+                bid.0.parse::<f64>()?,
+                bid.1.parse::<u64>()?,
+                bid.2.parse::<u64>()?,
+                bid.3,
+                bid.4,
+            ));
         }
+
+        let mut asks = vec![];
+
+        for ask in &value.asks {
+            asks.push((
+                ask.0.parse::<f64>()?,
+                ask.1.parse::<u64>()?,
+                ask.2.parse::<u64>()?,
+                ask.3,
+                ask.4,
+            ));
+        }
+
+        Ok(Self { bids, asks })
     }
 }
 
@@ -111,31 +100,50 @@ pub struct OtcBookRes {
     pub data: Option<Vec<OtcBook>>,
 }
 
-impl From<&RawOtcBookRes> for OtcBookRes {
-    fn from(value: &RawOtcBookRes) -> Self {
-        Self {
+impl TryFrom<&RawOtcBookRes> for OtcBookRes {
+    type Error = ApiError;
+
+    fn try_from(value: &RawOtcBookRes) -> Result<Self, Self::Error> {
+        Ok(Self {
             channel: value.channel.clone(),
             subscription: value.subscription.clone(),
             instrument_name: value.instrument_name.clone(),
             t: value.t,
-            data: value
-                .data
-                .as_ref()
-                .map(|data| data.iter().map(OtcBook::from).collect::<Vec<OtcBook>>()),
-        }
+            data: if let Some(data) = &value.data {
+                let mut books = vec![];
+
+                for book in data {
+                    books.push(OtcBook::try_from(book)?);
+                }
+
+                Some(books)
+            } else {
+                None
+            },
+        })
     }
 }
 
-impl From<RawOtcBookRes> for OtcBookRes {
-    fn from(value: RawOtcBookRes) -> Self {
-        Self {
-            channel: value.channel.clone(),
-            subscription: value.subscription.clone(),
-            instrument_name: value.instrument_name.clone(),
+impl TryFrom<RawOtcBookRes> for OtcBookRes {
+    type Error = ApiError;
+
+    fn try_from(value: RawOtcBookRes) -> Result<Self, Self::Error> {
+        Ok(Self {
+            channel: value.channel,
+            subscription: value.subscription,
+            instrument_name: value.instrument_name,
             t: value.t,
-            data: value
-                .data
-                .map(|data| data.iter().map(OtcBook::from).collect::<Vec<OtcBook>>()),
-        }
+            data: if let Some(data) = &value.data {
+                let mut books = vec![];
+
+                for book in data {
+                    books.push(OtcBook::try_from(book)?);
+                }
+
+                Some(books)
+            } else {
+                None
+            },
+        })
     }
 }

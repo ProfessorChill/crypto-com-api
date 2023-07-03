@@ -2,6 +2,8 @@
 
 use serde::Deserialize;
 
+use crate::prelude::ApiError;
+
 /// Raw user trade response data.
 #[derive(Deserialize, Debug)]
 pub struct RawUserTrade {
@@ -57,24 +59,20 @@ pub struct UserTrade {
     pub order_id: u64,
 }
 
-impl From<&RawUserTrade> for UserTrade {
-    fn from(value: &RawUserTrade) -> Self {
-        Self {
+impl TryFrom<&RawUserTrade> for UserTrade {
+    type Error = ApiError;
+
+    fn try_from(value: &RawUserTrade) -> Result<Self, Self::Error> {
+        Ok(Self {
             side: value.side.clone(),
             fee: value.fee,
-            trade_id: value
-                .trade_id
-                .parse::<u64>()
-                .expect("Failed to parse u64 of trade_id"),
+            trade_id: value.trade_id.parse::<u64>()?,
             create_time: value.create_time,
             traded_price: value.traded_price,
             traded_quantity: value.traded_quantity,
             fee_currency: value.fee_currency.clone(),
-            order_id: value
-                .order_id
-                .parse::<u64>()
-                .expect("Failed to parse u64 of order_id"),
-        }
+            order_id: value.order_id.parse::<u64>()?,
+        })
     }
 }
 
@@ -91,32 +89,40 @@ pub struct UserTradeRes {
     pub data: Vec<UserTrade>,
 }
 
-impl From<&RawUserTradeRes> for UserTradeRes {
-    fn from(value: &RawUserTradeRes) -> Self {
-        Self {
+impl TryFrom<&RawUserTradeRes> for UserTradeRes {
+    type Error = ApiError;
+
+    fn try_from(value: &RawUserTradeRes) -> Result<Self, Self::Error> {
+        let mut trades = vec![];
+
+        for trade in &value.data {
+            trades.push(UserTrade::try_from(trade)?);
+        }
+
+        Ok(Self {
             instrument_name: value.instrument_name.clone(),
             subscription: value.subscription.clone(),
             channel: value.channel.clone(),
-            data: value
-                .data
-                .iter()
-                .map(UserTrade::from)
-                .collect::<Vec<UserTrade>>(),
-        }
+            data: trades,
+        })
     }
 }
 
-impl From<RawUserTradeRes> for UserTradeRes {
-    fn from(value: RawUserTradeRes) -> Self {
-        Self {
+impl TryFrom<RawUserTradeRes> for UserTradeRes {
+    type Error = ApiError;
+
+    fn try_from(value: RawUserTradeRes) -> Result<Self, Self::Error> {
+        let mut trades = vec![];
+
+        for trade in &value.data {
+            trades.push(UserTrade::try_from(trade)?);
+        }
+
+        Ok(Self {
             instrument_name: value.instrument_name,
             subscription: value.subscription,
             channel: value.channel,
-            data: value
-                .data
-                .iter()
-                .map(UserTrade::from)
-                .collect::<Vec<UserTrade>>(),
-        }
+            data: trades,
+        })
     }
 }

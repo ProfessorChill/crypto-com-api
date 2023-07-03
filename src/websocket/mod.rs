@@ -63,7 +63,7 @@ pub enum WebsocketData {
     /// Data from `private/get-open-orders`.
     GetOpenOrders(OpenOrders),
     /// Data from `private/get-order-detail`.
-    GetOrderDetail(OrderDetail),
+    GetOrderDetail(Box<OrderDetail>),
     /// Data from `private/get-trades`.
     GetTrades(Trades),
     /// User Heartbeat.

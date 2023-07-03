@@ -88,7 +88,7 @@ pub async fn initialize_user_stream(
         tokio::spawn(async move {
             let user_to_process = {
                 user_read
-                    .map_err(|err| convert_tungstenite_error(err))
+                    .map_err(convert_tungstenite_error)
                     .try_for_each(|message| async {
                         match process_user(message, user_tx_arc.clone(), data_tx_arc.clone()).await
                         {
@@ -399,7 +399,9 @@ async fn private_get_order_detail(
     let tx = arc_tx.lock().await;
 
     let order_detail_data: OrderDetail = serde_json::from_str(&res.to_string())?;
-    tx.unbounded_send(msg.websocket_data(WebsocketData::GetOrderDetail(order_detail_data)))?;
+    tx.unbounded_send(
+        msg.websocket_data(WebsocketData::GetOrderDetail(Box::new(order_detail_data))),
+    )?;
     drop(tx);
 
     Ok(())

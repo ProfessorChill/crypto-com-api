@@ -2,6 +2,8 @@
 
 use serde::Deserialize;
 
+use crate::prelude::ApiError;
+
 /// The raw Candlestick data response.
 #[derive(Deserialize, Debug)]
 pub struct RawCandlestick {
@@ -40,17 +42,19 @@ pub struct Candlestick {
     pub v: f64,
 }
 
-impl From<&RawCandlestick> for Candlestick {
-    fn from(value: &RawCandlestick) -> Self {
-        Self {
+impl TryFrom<&RawCandlestick> for Candlestick {
+    type Error = ApiError;
+
+    fn try_from(value: &RawCandlestick) -> Result<Self, Self::Error> {
+        Ok(Self {
             t: value.t,
             ut: value.ut,
-            o: value.o.parse::<f64>().expect("Failed to parse f64 of o"),
-            h: value.h.parse::<f64>().expect("Failed to parse f64 of h"),
-            l: value.l.parse::<f64>().expect("Failed to parse f64 of l"),
-            c: value.c.parse::<f64>().expect("Failed to parse f64 of c"),
-            v: value.v.parse::<f64>().expect("Failed to parse f64 of v"),
-        }
+            o: value.o.parse::<f64>()?,
+            h: value.h.parse::<f64>()?,
+            l: value.l.parse::<f64>()?,
+            c: value.c.parse::<f64>()?,
+            v: value.v.parse::<f64>()?,
+        })
     }
 }
 
@@ -84,34 +88,42 @@ pub struct CandlestickRes {
     pub data: Vec<Candlestick>,
 }
 
-impl From<&RawCandlestickRes> for CandlestickRes {
-    fn from(value: &RawCandlestickRes) -> Self {
-        Self {
+impl TryFrom<&RawCandlestickRes> for CandlestickRes {
+    type Error = ApiError;
+
+    fn try_from(value: &RawCandlestickRes) -> Result<Self, Self::Error> {
+        let mut candlesticks = vec![];
+
+        for candlestick in &value.data {
+            candlesticks.push(Candlestick::try_from(candlestick)?);
+        }
+
+        Ok(Self {
             instrument_name: value.instrument_name.clone(),
             subscription: value.subscription.clone(),
             interval: value.interval.clone(),
             channel: value.channel.clone(),
-            data: value
-                .data
-                .iter()
-                .map(Candlestick::from)
-                .collect::<Vec<Candlestick>>(),
-        }
+            data: candlesticks,
+        })
     }
 }
 
-impl From<RawCandlestickRes> for CandlestickRes {
-    fn from(value: RawCandlestickRes) -> Self {
-        Self {
-            instrument_name: value.instrument_name.clone(),
-            subscription: value.subscription.clone(),
-            interval: value.interval.clone(),
-            channel: value.channel.clone(),
-            data: value
-                .data
-                .iter()
-                .map(Candlestick::from)
-                .collect::<Vec<Candlestick>>(),
+impl TryFrom<RawCandlestickRes> for CandlestickRes {
+    type Error = ApiError;
+
+    fn try_from(value: RawCandlestickRes) -> Result<Self, Self::Error> {
+        let mut candlesticks = vec![];
+
+        for candlestick in &value.data {
+            candlesticks.push(Candlestick::try_from(candlestick)?);
         }
+
+        Ok(Self {
+            instrument_name: value.instrument_name,
+            subscription: value.subscription,
+            interval: value.interval,
+            channel: value.channel,
+            data: candlesticks,
+        })
     }
 }

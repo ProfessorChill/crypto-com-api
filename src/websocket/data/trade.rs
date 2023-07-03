@@ -2,6 +2,8 @@
 
 use serde::Deserialize;
 
+use crate::prelude::ApiError;
+
 /// The raw trade response data.
 #[derive(Deserialize, Debug)]
 pub struct RawTrade {
@@ -36,16 +38,18 @@ pub struct Trade {
     pub i: String,
 }
 
-impl From<&RawTrade> for Trade {
-    fn from(value: &RawTrade) -> Self {
-        Self {
+impl TryFrom<&RawTrade> for Trade {
+    type Error = ApiError;
+
+    fn try_from(value: &RawTrade) -> Result<Self, Self::Error> {
+        Ok(Self {
             s: value.s.clone(),
-            p: value.p.parse::<f64>().expect("Failed to parse f64 of p"),
-            q: value.q.parse::<f64>().expect("Failed to parse f64 of q"),
+            p: value.p.parse::<f64>()?,
+            q: value.q.parse::<f64>()?,
             t: value.t,
             d: value.d.clone(),
             i: value.i.clone(),
-        }
+        })
     }
 }
 
@@ -75,24 +79,40 @@ pub struct TradeRes {
     pub data: Vec<Trade>,
 }
 
-impl From<&RawTradeRes> for TradeRes {
-    fn from(value: &RawTradeRes) -> Self {
-        Self {
+impl TryFrom<&RawTradeRes> for TradeRes {
+    type Error = ApiError;
+
+    fn try_from(value: &RawTradeRes) -> Result<Self, Self::Error> {
+        let mut trades = vec![];
+
+        for trade in &value.data {
+            trades.push(Trade::try_from(trade)?);
+        }
+
+        Ok(Self {
             instrument_name: value.instrument_name.clone(),
             subscription: value.subscription.clone(),
             channel: value.channel.clone(),
-            data: value.data.iter().map(Trade::from).collect::<Vec<Trade>>(),
-        }
+            data: trades,
+        })
     }
 }
 
-impl From<RawTradeRes> for TradeRes {
-    fn from(value: RawTradeRes) -> Self {
-        Self {
-            instrument_name: value.instrument_name.clone(),
-            subscription: value.subscription.clone(),
-            channel: value.channel.clone(),
-            data: value.data.iter().map(Trade::from).collect::<Vec<Trade>>(),
+impl TryFrom<RawTradeRes> for TradeRes {
+    type Error = ApiError;
+
+    fn try_from(value: RawTradeRes) -> Result<Self, Self::Error> {
+        let mut trades = vec![];
+
+        for trade in &value.data {
+            trades.push(Trade::try_from(trade)?);
         }
+
+        Ok(Self {
+            instrument_name: value.instrument_name,
+            subscription: value.subscription,
+            channel: value.channel,
+            data: trades,
+        })
     }
 }

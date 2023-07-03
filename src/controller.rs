@@ -81,6 +81,12 @@ pub struct ControllerBuilder<A, U, M> {
     _mark_market_ws: PhantomData<M>,
 }
 
+impl Default for ControllerBuilder<NoAuth, NoUserWs, NoMarketWs> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ControllerBuilder<NoAuth, NoUserWs, NoMarketWs> {
     /// The base controller builder with no actions.
     pub fn new() -> Self {

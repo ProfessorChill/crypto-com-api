@@ -1,5 +1,7 @@
 //! Main crate error.
 
+use std::num::{ParseFloatError, ParseIntError};
+
 use anyhow::Error as AnyError;
 
 use crate::websocket::WebsocketData;
@@ -52,7 +54,28 @@ pub enum ApiError {
     /// Unhandled error downcasts.
     #[error("unable to downcast error")]
     Downcast,
+    /// Parse number error.
+    #[error("failed to parse number")]
+    ParseNumber,
     /// An error we don't handle at the time.
     #[error("we aren't handling this right now")]
     Unhandled,
+}
+
+impl From<ParseFloatError> for ApiError {
+    fn from(_value: ParseFloatError) -> Self {
+        ApiError::ParseNumber
+    }
+}
+
+impl From<ParseIntError> for ApiError {
+    fn from(_value: ParseIntError) -> Self {
+        ApiError::ParseNumber
+    }
+}
+
+impl From<serde_json::Error> for ApiError {
+    fn from(_value: serde_json::Error) -> Self {
+        ApiError::SerdeJSON
+    }
 }

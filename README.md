@@ -92,10 +92,6 @@ Make `process_user` and `process_market` exit the thread upon encountering a cri
 of simply waiting for the next piece of data from the stream and only storing the error to be mapped
 after the thread closes.
 
-Add proper error handling to types, as an example, in `src/websocket/data/book.rs` we use
-From instead of TryFrom despite it being possible for the incoming data to be inconsistent
-and cause a failure.
-
 Add tests that should panic to data types.
 
 Finish creating the missing routes and adding tests where I reasonably can.

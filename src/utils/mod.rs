@@ -6,12 +6,12 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use anyhow::Result;
+use anyhow::Result as AnyResult;
 use futures_channel::mpsc::UnboundedSender;
 use tokio::sync::Mutex;
 use tokio_tungstenite::tungstenite::Message;
 
-use crate::api_response::ApiResponse;
+use crate::{api_response::ApiResponse, prelude::ApiError};
 
 pub mod action;
 pub mod config;
@@ -87,14 +87,15 @@ pub fn get_epoch_ms() -> u64 {
 /// # Errors
 ///
 /// Will return [`serde_json::Error`] if [`serde_json::from_str`] fails to process msg string data.
-pub fn reprocess_data<'a, T, A>(msg: &'a str) -> Result<A>
+pub fn reprocess_data<'a, T, A>(msg: &'a str) -> Result<A, ApiError>
 where
     T: serde::Deserialize<'a>,
-    A: From<T> + std::fmt::Debug,
+    A: TryFrom<T> + std::fmt::Debug,
+    ApiError: From<<A as TryFrom<T>>::Error>,
 {
     let raw_msg = serde_json::from_str(msg)?;
 
-    Ok(A::from(raw_msg))
+    Ok(A::try_from(raw_msg)?)
 }
 
 /// A function to convert a `tungstenite::Message` into a `ApiResponse<serde_json::Value>`.
@@ -113,7 +114,7 @@ where
 pub async fn message_to_api_response(
     tx_arc: &Arc<Mutex<UnboundedSender<Message>>>,
     msg: &Message,
-) -> Result<ApiResponse<serde_json::Value>> {
+) -> AnyResult<ApiResponse<serde_json::Value>> {
     Ok(match msg {
         Message::Text(msg) => serde_json::from_str(msg)?,
         Message::Binary(msg) => serde_json::from_str(str::from_utf8(msg)?)?,

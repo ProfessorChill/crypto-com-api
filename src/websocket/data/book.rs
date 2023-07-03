@@ -2,6 +2,8 @@
 
 use serde::Deserialize;
 
+use crate::prelude::ApiError;
+
 /// The raw book data response.
 ///
 /// Level: (
@@ -48,48 +50,38 @@ pub struct Book {
     pub cs: i64,
 }
 
-impl From<&RawBook> for Book {
-    fn from(value: &RawBook) -> Self {
-        Self {
-            bids: value
-                .bids
-                .iter()
-                .map(|bid| {
-                    (
-                        bid.0
-                            .parse::<f64>()
-                            .expect("Failed to parse f64 of price of the level"),
-                        bid.1
-                            .parse::<f64>()
-                            .expect("Failed to parse f64 of total size of the level"),
-                        bid.2.parse::<u64>().expect(
-                            "Failed to parse u64 of number of standing orders in the level",
-                        ),
-                    )
-                })
-                .collect::<Vec<(f64, f64, u64)>>(),
-            asks: value
-                .asks
-                .iter()
-                .map(|ask| {
-                    (
-                        ask.0
-                            .parse::<f64>()
-                            .expect("Failed to parse f64 of price of the level"),
-                        ask.1
-                            .parse::<f64>()
-                            .expect("Failed to parse f64 of total size of the level"),
-                        ask.2.parse::<u64>().expect(
-                            "Failed to parse u64 of number of standing orders in the level",
-                        ),
-                    )
-                })
-                .collect::<Vec<(f64, f64, u64)>>(),
+impl TryFrom<&RawBook> for Book {
+    type Error = ApiError;
+
+    fn try_from(value: &RawBook) -> Result<Self, Self::Error> {
+        let mut bids = vec![];
+
+        for bid in &value.bids {
+            bids.push((
+                bid.0.parse::<f64>()?,
+                bid.1.parse::<f64>()?,
+                bid.2.parse::<u64>()?,
+            ));
+        }
+
+        let mut asks = vec![];
+
+        for ask in &value.asks {
+            asks.push((
+                ask.0.parse::<f64>()?,
+                ask.1.parse::<f64>()?,
+                ask.2.parse::<u64>()?,
+            ));
+        }
+
+        Ok(Self {
+            bids,
+            asks,
             tt: value.tt,
             t: value.t,
             u: value.u,
             cs: value.cs,
-        }
+        })
     }
 }
 
@@ -123,26 +115,42 @@ pub struct BookRes {
     pub data: Vec<Book>,
 }
 
-impl From<&RawBookRes> for BookRes {
-    fn from(value: &RawBookRes) -> Self {
-        Self {
+impl TryFrom<&RawBookRes> for BookRes {
+    type Error = ApiError;
+
+    fn try_from(value: &RawBookRes) -> Result<Self, Self::Error> {
+        let mut books = vec![];
+
+        for raw_book in &value.data {
+            books.push(Book::try_from(raw_book)?);
+        }
+
+        Ok(Self {
             channel: value.channel.clone(),
             subscription: value.subscription.clone(),
-            data: value.data.iter().map(Book::from).collect::<Vec<Book>>(),
+            data: books,
             instrument_name: value.instrument_name.clone(),
             depth: value.depth,
-        }
+        })
     }
 }
 
-impl From<RawBookRes> for BookRes {
-    fn from(value: RawBookRes) -> Self {
-        Self {
-            channel: value.channel.clone(),
-            subscription: value.subscription.clone(),
-            data: value.data.iter().map(Book::from).collect::<Vec<Book>>(),
-            instrument_name: value.instrument_name.clone(),
-            depth: value.depth,
+impl TryFrom<RawBookRes> for BookRes {
+    type Error = ApiError;
+
+    fn try_from(value: RawBookRes) -> Result<Self, Self::Error> {
+        let mut books = vec![];
+
+        for raw_book in &value.data {
+            books.push(Book::try_from(raw_book)?);
         }
+
+        Ok(Self {
+            channel: value.channel,
+            subscription: value.subscription,
+            data: books,
+            instrument_name: value.instrument_name,
+            depth: value.depth,
+        })
     }
 }
