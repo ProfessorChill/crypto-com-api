@@ -1,12 +1,8 @@
 //! Data and helper functions for interacting with the websocket system.
 
-use std::sync::Arc;
-
 use anyhow::Result;
 use futures_channel::mpsc::UnboundedSender;
 use serde::Serialize;
-use tokio::signal;
-use tokio::sync::Mutex;
 use tokio_tungstenite::tungstenite::Message;
 
 use crate::api_request::ApiRequestBuilder;
@@ -193,45 +189,4 @@ pub fn auth(
     tx.unbounded_send(msg).expect("Failed to send auth message");
 
     Ok(())
-}
-
-/// Initialize the shutdown system.
-pub async fn initialize_shutdown(
-    market_tx_arc: Arc<Mutex<UnboundedSender<Message>>>,
-    user_tx_arc: Arc<Mutex<UnboundedSender<Message>>>,
-) -> futures_channel::oneshot::Receiver<bool> {
-    let (shutdown_tx, shutdown_rx) = futures_channel::oneshot::channel::<bool>();
-
-    tokio::spawn(async move {
-        match signal::ctrl_c().await {
-            Ok(()) => {
-                let market_tx = market_tx_arc.lock().await;
-                let user_tx = user_tx_arc.lock().await;
-
-                market_tx.close_channel();
-                drop(market_tx);
-                user_tx.close_channel();
-                drop(user_tx);
-                shutdown_tx
-                    .send(true)
-                    .expect("Failed to send shutdown signal.");
-            }
-            Err(err) => {
-                let market_tx = market_tx_arc.lock().await;
-                let user_tx = user_tx_arc.lock().await;
-
-                log::error!("Unable to listen for shutdown signal: {}", err);
-
-                market_tx.close_channel();
-                drop(market_tx);
-                user_tx.close_channel();
-                drop(user_tx);
-                shutdown_tx
-                    .send(true)
-                    .expect("Failed to send shutdown signal.");
-            }
-        }
-    });
-
-    shutdown_rx
 }
