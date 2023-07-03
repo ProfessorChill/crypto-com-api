@@ -4,7 +4,9 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 use anyhow::Result;
+use futures_util::StreamExt;
 use tokio::sync::Mutex;
+use tokio::task::JoinHandle;
 
 use crate::prelude::{ActionStoreSender, DataReciever, DataSender};
 use crate::utils::action::{Action, ActionStore};
@@ -42,8 +44,12 @@ pub struct Controller<U, M> {
     pub current_id: u64,
     /// Market actions sender, this is used to send actions to the market API.
     pub market_actions_tx: Option<ActionStoreSender>,
+    /// Market join handle.
+    pub market_stream_join_handle: Option<JoinHandle<Result<()>>>,
     /// User actions sender, this is used to send actions to the user API.
     pub user_actions_tx: Option<ActionStoreSender>,
+    /// User join handle.
+    pub user_stream_join_handle: Option<JoinHandle<Result<()>>>,
     /// Data action sender.
     pub data_tx: DataSender,
     /// Data reciever.
@@ -59,8 +65,12 @@ pub struct ControllerBuilder<A, U, M> {
     pub config: Config,
     /// Market actions sender, this is used to send actions to the market API.
     pub market_actions_tx: Option<ActionStoreSender>,
+    /// Market join handle.
+    pub market_stream_join_handle: Option<JoinHandle<Result<()>>>,
     /// User actions sender, this is used to send actions to the user API.
     pub user_actions_tx: Option<ActionStoreSender>,
+    /// User join handle.
+    pub user_stream_join_handle: Option<JoinHandle<Result<()>>>,
     /// Data action sender.
     pub data_tx: DataSender,
     /// Data reciever.
@@ -78,7 +88,9 @@ impl ControllerBuilder<NoAuth, NoUserWs, NoMarketWs> {
         Self {
             config: Config::default(),
             market_actions_tx: None,
+            market_stream_join_handle: None,
             user_actions_tx: None,
+            user_stream_join_handle: None,
             data_rx: Arc::new(Mutex::new(data_rx)),
             data_tx: Arc::new(Mutex::new(data_tx)),
             _mark_auth: PhantomData,
@@ -101,7 +113,9 @@ impl<A, U, M> ControllerBuilder<A, U, M> {
         ControllerBuilder {
             config: self.config,
             market_actions_tx: self.market_actions_tx,
+            market_stream_join_handle: self.market_stream_join_handle,
             user_actions_tx: self.user_actions_tx,
+            user_stream_join_handle: self.user_stream_join_handle,
             data_tx: self.data_tx,
             data_rx: self.data_rx,
             _mark_auth: PhantomData,
@@ -116,14 +130,16 @@ impl<A, U, M> ControllerBuilder<A, U, M> {
         url: url::Url,
     ) -> Result<ControllerBuilder<A, U, MarketWs>> {
         self.config.websocket_market_api = Some(url);
-        let market_tx_arc =
+        let (market_join_handle, market_tx_arc) =
             market_api::initialize_market_stream(&self.config, self.data_tx.clone()).await?;
         let market_actions_tx = market_api::initialize_market_actions(market_tx_arc.clone()).await;
 
         Ok(ControllerBuilder {
             config: self.config,
             market_actions_tx: Some(Arc::new(Mutex::new(market_actions_tx))),
+            market_stream_join_handle: Some(market_join_handle),
             user_actions_tx: self.user_actions_tx,
+            user_stream_join_handle: self.user_stream_join_handle,
             data_tx: self.data_tx,
             data_rx: self.data_rx,
             _mark_auth: PhantomData,
@@ -140,14 +156,16 @@ impl<Auth, U, M> ControllerBuilder<Auth, U, M> {
         url: url::Url,
     ) -> Result<ControllerBuilder<Auth, UserWs, M>> {
         self.config.websocket_user_api = Some(url);
-        let user_tx_arc =
+        let (user_join_handle, user_tx_arc) =
             user_api::initialize_user_stream(&self.config, self.data_tx.clone()).await?;
         let user_actions_tx = user_api::initialize_user_actions(user_tx_arc.clone()).await;
 
         Ok(ControllerBuilder {
             config: self.config,
             market_actions_tx: self.market_actions_tx,
+            market_stream_join_handle: None,
             user_actions_tx: Some(Arc::new(Mutex::new(user_actions_tx))),
+            user_stream_join_handle: Some(user_join_handle),
             data_tx: self.data_tx,
             data_rx: self.data_rx,
             _mark_auth: PhantomData,
@@ -164,7 +182,9 @@ impl<A, U, M> ControllerBuilder<A, U, M> {
             config: self.config,
             current_id: 0,
             market_actions_tx: self.market_actions_tx,
+            market_stream_join_handle: self.market_stream_join_handle,
             user_actions_tx: self.user_actions_tx,
+            user_stream_join_handle: self.user_stream_join_handle,
             data_tx: self.data_tx,
             data_rx: self.data_rx,
             _mark_user_ws: PhantomData,
@@ -213,5 +233,28 @@ impl<U, W> Controller<U, W> {
     /// Get a clone of the data reader.
     pub fn get_data_reader(&self) -> DataReciever {
         self.data_rx.clone()
+    }
+
+    /// Create a data listener.
+    ///
+    /// In order to use this function you must pass a lambda that returns `Ok(false)` to continue
+    /// processing data, or `Ok(true)` to break the loop and stop processing data.
+    pub fn listen<F>(&self, mut async_fn: F) -> JoinHandle<Result<()>>
+    where
+        F: FnMut(WebsocketData) -> Result<bool> + Send + 'static,
+    {
+        let data_rx_arc = self.get_data_reader();
+
+        tokio::spawn(async move {
+            let mut data_rx = data_rx_arc.lock().await;
+
+            while let Some(data) = data_rx.next().await {
+                if async_fn(data)? {
+                    break;
+                }
+            }
+
+            Ok(())
+        })
     }
 }

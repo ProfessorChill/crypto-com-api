@@ -7,6 +7,7 @@ use futures_channel::mpsc::UnboundedSender;
 use futures_util::{future, pin_mut, StreamExt, TryStreamExt};
 use serde::Serialize;
 use tokio::sync::Mutex;
+use tokio::task::JoinHandle;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 use crate::api_request::ApiRequestBuilder;
@@ -71,7 +72,7 @@ pub async fn initialize_market_actions(
 pub async fn initialize_market_stream(
     config: &Config,
     data_tx_arc: DataSender,
-) -> Result<MessageSender> {
+) -> Result<(JoinHandle<Result<()>>, MessageSender)> {
     let (market_tx, market_rx) = futures_channel::mpsc::unbounded();
     let market_tx_arc = Arc::new(Mutex::new(market_tx));
     let Some(websocket_market_api) = &config.websocket_market_api else {
@@ -91,13 +92,13 @@ pub async fn initialize_market_stream(
     let (market_write, market_read) = market_stream.split();
     let rx_to_market = market_rx.map(Ok).forward(market_write);
 
-    {
+    let join_handle: JoinHandle<Result<()>> = {
         let market_tx_arc = market_tx_arc.clone();
 
         tokio::spawn(async move {
             let market_to_process = {
                 market_read
-                    .map_err(|err| convert_tungstenite_error(err))
+                    .map_err(convert_tungstenite_error)
                     .try_for_each(|message| async {
                         match process_market(message, market_tx_arc.clone(), data_tx_arc.clone())
                             .await
@@ -111,10 +112,12 @@ pub async fn initialize_market_stream(
             pin_mut!(rx_to_market, market_to_process);
             future::select(rx_to_market, market_to_process).await;
             log::info!("Market process completed");
-        });
-    }
 
-    Ok(market_tx_arc)
+            Ok(())
+        })
+    };
+
+    Ok((join_handle, market_tx_arc))
 }
 
 /// Send a subscription request to the market api.

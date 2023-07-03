@@ -1,20 +1,15 @@
 #![cfg(all(feature = "websocket", feature = "test_authorized"))]
 
 use anyhow::Result as AnyhowResult;
+use crypto_com_api::websocket::actions::spot_trading_api::{
+    GetAccountSummary, GetOpenOrders, GetOrderHistory, GetTrades, Paginated,
+};
+use crypto_com_api::websocket::actions::Auth;
 use crypto_com_api::{
     controller::{Controller, ControllerBuilder, NoMarketWs, UserWs},
     prelude::ApiError,
-    websocket::{
-        actions::{
-            spot_trading_api::{
-                GetAccountSummary, GetOpenOrders, GetOrderHistory, GetTrades, Paginated,
-            },
-            Auth,
-        },
-        WebsocketData,
-    },
+    websocket::WebsocketData,
 };
-use futures_util::StreamExt;
 
 async fn get_controller() -> AnyhowResult<Controller<UserWs, NoMarketWs>> {
     let api_key = std::env::var("API_KEY").expect("API_KEY is not set in .env");
@@ -37,38 +32,17 @@ async fn auth() -> AnyhowResult<()> {
     dotenv::dotenv()?;
 
     let mut controller = get_controller().await?;
-    let data_rx_arc = controller.get_data_reader();
 
-    let mut data_till_fail = 0;
-
-    let join_handle: tokio::task::JoinHandle<Result<(), ApiError>> = {
-        let data_rx_arc = data_rx_arc.clone();
-
-        tokio::spawn(async move {
-            let mut data_rx = data_rx_arc.lock().await;
-
-            while let Some(data) = data_rx.next().await {
-                if data_till_fail >= 10 {
-                    panic!("Auth never arrived.");
-                }
-
-                match data {
-                    WebsocketData::Auth(code) => {
-                        if code > 0 {
-                            return Err(ApiError::AuthFail(code));
-                        }
-
-                        return Ok(());
-                    }
-                    _ => {}
-                }
-
-                data_till_fail += 1;
+    let join_handle = controller.listen(move |data| match data {
+        WebsocketData::Auth(code) => {
+            if code > 0 {
+                anyhow::bail!(ApiError::AuthFail(code));
             }
 
-            Ok(())
-        })
-    };
+            Ok(true)
+        }
+        _ => Ok(false),
+    });
 
     controller
         .push_user_action(Box::new(Auth {
@@ -89,29 +63,18 @@ async fn get_account_summary() -> AnyhowResult<()> {
     dotenv::dotenv()?;
 
     let mut controller = get_controller().await?;
-    let data_rx_arc = controller.get_data_reader();
 
-    let join_handle: tokio::task::JoinHandle<Result<(), ApiError>> = {
-        let data_rx_arc = data_rx_arc.clone();
-
-        tokio::spawn(async move {
-            let mut data_rx = data_rx_arc.lock().await;
-
-            while let Some(data) = data_rx.next().await {
-                match data {
-                    WebsocketData::Auth(code) => {
-                        if code > 0 {
-                            return Err(ApiError::AuthFail(code));
-                        }
-                    }
-                    WebsocketData::GetAccountSummary(_account_summary) => return Ok(()),
-                    _ => {}
-                }
+    let join_handle = controller.listen(move |data| match data {
+        WebsocketData::Auth(code) => {
+            if code > 0 {
+                anyhow::bail!(ApiError::AuthFail(code))
+            } else {
+                Ok(false)
             }
-
-            Ok(())
-        })
-    };
+        }
+        WebsocketData::GetAccountSummary(_account_summary) => Ok(true),
+        _ => Ok(false),
+    });
 
     controller
         .push_user_action(Box::new(Auth {
@@ -138,29 +101,18 @@ async fn get_order_history() -> AnyhowResult<()> {
     dotenv::dotenv()?;
 
     let mut controller = get_controller().await?;
-    let data_rx_arc = controller.get_data_reader();
 
-    let join_handle: tokio::task::JoinHandle<Result<(), ApiError>> = {
-        let data_rx_arc = data_rx_arc.clone();
-
-        tokio::spawn(async move {
-            let mut data_rx = data_rx_arc.lock().await;
-
-            while let Some(data) = data_rx.next().await {
-                match data {
-                    WebsocketData::Auth(code) => {
-                        if code > 0 {
-                            return Err(ApiError::AuthFail(code));
-                        }
-                    }
-                    WebsocketData::GetOrderHistory(_order_history) => return Ok(()),
-                    _ => {}
-                }
+    let join_handle = controller.listen(move |data| match data {
+        WebsocketData::Auth(code) => {
+            if code > 0 {
+                anyhow::bail!(ApiError::AuthFail(code))
+            } else {
+                Ok(false)
             }
-
-            Ok(())
-        })
-    };
+        }
+        WebsocketData::GetOrderHistory(_order_history) => Ok(true),
+        _ => Ok(false),
+    });
 
     controller
         .push_user_action(Box::new(Auth {
@@ -191,29 +143,18 @@ async fn get_open_orders() -> AnyhowResult<()> {
     dotenv::dotenv()?;
 
     let mut controller = get_controller().await?;
-    let data_rx_arc = controller.get_data_reader();
 
-    let join_handle: tokio::task::JoinHandle<Result<(), ApiError>> = {
-        let data_rx_arc = data_rx_arc.clone();
-
-        tokio::spawn(async move {
-            let mut data_rx = data_rx_arc.lock().await;
-
-            while let Some(data) = data_rx.next().await {
-                match data {
-                    WebsocketData::Auth(code) => {
-                        if code > 0 {
-                            return Err(ApiError::AuthFail(code));
-                        }
-                    }
-                    WebsocketData::GetOpenOrders(_open_orders) => return Ok(()),
-                    _ => {}
-                }
+    let join_handle = controller.listen(move |data| match data {
+        WebsocketData::Auth(code) => {
+            if code > 0 {
+                anyhow::bail!(ApiError::AuthFail(code))
+            } else {
+                Ok(false)
             }
-
-            Ok(())
-        })
-    };
+        }
+        WebsocketData::GetOpenOrders(_open_orders) => Ok(true),
+        _ => Ok(false),
+    });
 
     controller
         .push_user_action(Box::new(Auth {
@@ -243,29 +184,18 @@ async fn get_trades() -> AnyhowResult<()> {
     let _ = env_logger::init();
 
     let mut controller = get_controller().await?;
-    let data_rx_arc = controller.get_data_reader();
 
-    let join_handle: tokio::task::JoinHandle<Result<(), ApiError>> = {
-        let data_rx_arc = data_rx_arc.clone();
-
-        tokio::spawn(async move {
-            let mut data_rx = data_rx_arc.lock().await;
-
-            while let Some(data) = data_rx.next().await {
-                match data {
-                    WebsocketData::Auth(code) => {
-                        if code > 0 {
-                            return Err(ApiError::AuthFail(code));
-                        }
-                    }
-                    WebsocketData::GetTrades(_trades) => return Ok(()),
-                    _ => {}
-                }
+    let join_handle = controller.listen(move |data| match data {
+        WebsocketData::Auth(code) => {
+            if code > 0 {
+                anyhow::bail!(ApiError::AuthFail(code))
+            } else {
+                Ok(false)
             }
-
-            Ok(())
-        })
-    };
+        }
+        WebsocketData::GetTrades(_trades) => Ok(true),
+        _ => Ok(false),
+    });
 
     controller
         .push_user_action(Box::new(Auth {

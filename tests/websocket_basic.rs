@@ -5,7 +5,6 @@ use crypto_com_api::{
     controller::{Controller, ControllerBuilder, MarketWs, NoUserWs},
     websocket::{actions::Subscribe, WebsocketData},
 };
-use futures_util::StreamExt;
 
 async fn get_controller_sandbox() -> Result<Controller<NoUserWs, MarketWs>> {
     let websocket_user_url = url::Url::parse("wss://uat-stream.3ona.co/v2/market")
@@ -17,37 +16,14 @@ async fn get_controller_sandbox() -> Result<Controller<NoUserWs, MarketWs>> {
         .build())
 }
 
-const DATA_SUCCESS_LIMIT: usize = 10;
-
 #[tokio::test]
 async fn handshake() -> Result<()> {
     let controller = get_controller_sandbox().await?;
-    let data_rx_arc = controller.get_data_reader();
 
-    let mut data_till_fail = 0;
-
-    let join_handle: tokio::task::JoinHandle<Result<()>> = {
-        let data_rx_arc = data_rx_arc.clone();
-
-        tokio::spawn(async move {
-            let mut data_rx = data_rx_arc.lock().await;
-
-            while let Some(data) = data_rx.next().await {
-                if data_till_fail >= 10 {
-                    panic!("Handshake never arrived.");
-                }
-
-                match data {
-                    WebsocketData::MarketHandshake => return Ok(()),
-                    _ => {}
-                }
-
-                data_till_fail += 1;
-            }
-
-            Ok(())
-        })
-    };
+    let join_handle = controller.listen(move |data| match data {
+        WebsocketData::MarketHandshake => Ok(true),
+        _ => Ok(false),
+    });
 
     let result = join_handle.await?;
     assert!(result.is_ok(), "handshake failed!");
@@ -58,30 +34,11 @@ async fn handshake() -> Result<()> {
 #[tokio::test]
 async fn book_subscription() -> Result<()> {
     let mut controller = get_controller_sandbox().await?;
-    let data_rx_arc = controller.get_data_reader();
 
-    let mut data_success = 0;
-
-    let join_handle: tokio::task::JoinHandle<Result<()>> = {
-        let data_rx_arc = data_rx_arc.clone();
-
-        tokio::spawn(async move {
-            let mut data_rx = data_rx_arc.lock().await;
-
-            while let Some(data) = data_rx.next().await {
-                match data {
-                    WebsocketData::Book(_book) => data_success += 1,
-                    _ => {}
-                }
-
-                if data_success > DATA_SUCCESS_LIMIT {
-                    return Ok(());
-                }
-            }
-
-            Ok(())
-        })
-    };
+    let join_handle = controller.listen(move |data| match data {
+        WebsocketData::Book(_book) => Ok(true),
+        _ => Ok(false),
+    });
 
     controller
         .push_market_action(Box::new(Subscribe {
@@ -98,30 +55,11 @@ async fn book_subscription() -> Result<()> {
 #[tokio::test]
 async fn ticker_subscription() -> Result<()> {
     let mut controller = get_controller_sandbox().await?;
-    let data_rx_arc = controller.get_data_reader();
 
-    let mut data_success = 0;
-
-    let join_handle: tokio::task::JoinHandle<Result<()>> = {
-        let data_rx_arc = data_rx_arc.clone();
-
-        tokio::spawn(async move {
-            let mut data_rx = data_rx_arc.lock().await;
-
-            while let Some(data) = data_rx.next().await {
-                match data {
-                    WebsocketData::Ticker(_ticker) => data_success += 1,
-                    _ => {}
-                }
-
-                if data_success > DATA_SUCCESS_LIMIT {
-                    return Ok(());
-                }
-            }
-
-            Ok(())
-        })
-    };
+    let join_handle = controller.listen(move |data| match data {
+        WebsocketData::Ticker(_ticker) => Ok(true),
+        _ => Ok(false),
+    });
 
     controller
         .push_market_action(Box::new(Subscribe {
@@ -138,30 +76,11 @@ async fn ticker_subscription() -> Result<()> {
 #[tokio::test]
 async fn trade_subscription() -> Result<()> {
     let mut controller = get_controller_sandbox().await?;
-    let data_rx_arc = controller.get_data_reader();
 
-    let mut data_success = 0;
-
-    let join_handle: tokio::task::JoinHandle<Result<()>> = {
-        let data_rx_arc = data_rx_arc.clone();
-
-        tokio::spawn(async move {
-            let mut data_rx = data_rx_arc.lock().await;
-
-            while let Some(data) = data_rx.next().await {
-                match data {
-                    WebsocketData::Trade(_trade) => data_success += 1,
-                    _ => {}
-                }
-
-                if data_success > DATA_SUCCESS_LIMIT {
-                    return Ok(());
-                }
-            }
-
-            Ok(())
-        })
-    };
+    let join_handle = controller.listen(move |data| match data {
+        WebsocketData::Trade(_trade) => Ok(true),
+        _ => Ok(false),
+    });
 
     controller
         .push_market_action(Box::new(Subscribe {
@@ -178,30 +97,11 @@ async fn trade_subscription() -> Result<()> {
 #[tokio::test]
 async fn candlestick_subscription() -> Result<()> {
     let mut controller = get_controller_sandbox().await?;
-    let data_rx_arc = controller.get_data_reader();
 
-    let mut data_success = 0;
-
-    let join_handle: tokio::task::JoinHandle<Result<()>> = {
-        let data_rx_arc = data_rx_arc.clone();
-
-        tokio::spawn(async move {
-            let mut data_rx = data_rx_arc.lock().await;
-
-            while let Some(data) = data_rx.next().await {
-                match data {
-                    WebsocketData::Candlestick(_candlestick) => data_success += 1,
-                    _ => {}
-                }
-
-                if data_success > DATA_SUCCESS_LIMIT {
-                    return Ok(());
-                }
-            }
-
-            Ok(())
-        })
-    };
+    let join_handle = controller.listen(move |data| match data {
+        WebsocketData::Candlestick(_candlestick) => Ok(true),
+        _ => Ok(false),
+    });
 
     controller
         .push_market_action(Box::new(Subscribe {
@@ -218,24 +118,11 @@ async fn candlestick_subscription() -> Result<()> {
 #[tokio::test]
 async fn otc_book_subscription() -> Result<()> {
     let mut controller = get_controller_sandbox().await?;
-    let data_rx_arc = controller.get_data_reader();
 
-    let join_handle: tokio::task::JoinHandle<Result<()>> = {
-        let data_rx_arc = data_rx_arc.clone();
-
-        tokio::spawn(async move {
-            let mut data_rx = data_rx_arc.lock().await;
-
-            while let Some(data) = data_rx.next().await {
-                match data {
-                    WebsocketData::OtcBook(_otc_book) => return Ok(()),
-                    _ => {}
-                }
-            }
-
-            Ok(())
-        })
-    };
+    let join_handle = controller.listen(move |data| match data {
+        WebsocketData::OtcBook(_otc_book) => Ok(true),
+        _ => Ok(false),
+    });
 
     controller
         .push_market_action(Box::new(Subscribe {

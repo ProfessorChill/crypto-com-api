@@ -6,6 +6,7 @@ use anyhow::Result;
 use futures_channel::mpsc::UnboundedSender;
 use futures_util::{future, pin_mut, StreamExt, TryStreamExt};
 use tokio::sync::Mutex;
+use tokio::task::JoinHandle;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 use crate::api_response::ApiResponse;
@@ -59,7 +60,7 @@ pub async fn initialize_user_actions(user_tx_arc: MessageSender) -> UnboundedSen
 pub async fn initialize_user_stream(
     config: &Config,
     data_tx_arc: DataSender,
-) -> Result<MessageSender> {
+) -> Result<(JoinHandle<Result<()>>, MessageSender)> {
     let (user_tx, user_rx) = futures_channel::mpsc::unbounded();
     let user_tx_arc = Arc::new(Mutex::new(user_tx));
     let Some(websocket_user_api) = &config.websocket_user_api else {
@@ -79,7 +80,7 @@ pub async fn initialize_user_stream(
     let (user_write, user_read) = user_stream.split();
     let rx_to_user = user_rx.map(Ok).forward(user_write);
 
-    {
+    let join_handle: JoinHandle<Result<()>> = {
         let user_tx_arc = user_tx_arc.clone();
 
         tokio::spawn(async move {
@@ -98,10 +99,12 @@ pub async fn initialize_user_stream(
             pin_mut!(rx_to_user, user_to_process);
             future::select(rx_to_user, user_to_process).await;
             log::info!("User process completed");
-        });
-    }
 
-    Ok(user_tx_arc)
+            Ok(())
+        })
+    };
+
+    Ok((join_handle, user_tx_arc))
 }
 
 /// Process the subscribe return data from the market api.
