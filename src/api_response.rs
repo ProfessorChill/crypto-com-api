@@ -2,6 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::websocket::WebsocketData;
+
 /// The format of an API response from the crypto.com server.
 #[derive(Deserialize, Debug, Serialize)]
 pub struct ApiResponse<T> {
@@ -37,6 +39,22 @@ impl<T> Default for ApiResponse<T> {
             original: None,
             detail_code: None,
             detail_message: None,
+        }
+    }
+}
+
+impl<T> ApiResponse<T> {
+    /// Make the [`ApiResponse`] convert to send [`WebsocketData`]
+    pub fn websocket_data(&self, data: WebsocketData) -> ApiResponse<WebsocketData> {
+        ApiResponse {
+            id: self.id,
+            method: self.method.clone(),
+            result: Some(data),
+            code: self.code,
+            message: self.message.clone(),
+            original: self.original.clone(),
+            detail_code: self.detail_code.clone(),
+            detail_message: self.detail_message.clone(),
         }
     }
 }

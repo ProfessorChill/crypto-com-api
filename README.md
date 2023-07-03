@@ -96,9 +96,6 @@ Add proper error handling to types, as an example, in `src/websocket/data/book.r
 From instead of TryFrom despite it being possible for the incoming data to be inconsistent
 and cause a failure.
 
-Handle and return error codes sent from crypto.com in the form of `(Option<transaction_id>, ApiError::Code)`
-or something of the likes instead of just ignoring the error.
-
 Add tests that should panic to data types.
 
 Finish creating the missing routes and adding tests where I reasonably can.

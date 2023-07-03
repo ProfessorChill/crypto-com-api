@@ -23,7 +23,7 @@ pub mod user_api;
 #[derive(Debug)]
 pub enum WebsocketData {
     /// Auth with auth code.
-    Auth(u64),
+    Auth,
     /// Data from `ticker.{instrument_name}` subscription.
     Ticker(TickerRes),
     /// Data from `book.{instrument_name}` subscription.
@@ -57,9 +57,7 @@ pub enum WebsocketData {
     /// Data from `private/cancel-order-list`.
     CancelOrderList(CancelOrderList),
     /// Data from `private/cancel-all-orders`.
-    ///
-    /// This only returns the ID of the request as a confirmation of the request.
-    CancelAllOrders(u64),
+    CancelAllOrders,
     /// Data from `private/get-order-history`.
     GetOrderHistory(OrderHistory),
     /// Data from `private/get-open-orders`.

@@ -20,9 +20,15 @@ async fn get_controller_sandbox() -> Result<Controller<NoUserWs, MarketWs>> {
 async fn handshake() -> Result<()> {
     let controller = get_controller_sandbox().await?;
 
-    let join_handle = controller.listen(move |data| match data {
-        WebsocketData::MarketHandshake => Ok(true),
-        _ => Ok(false),
+    let join_handle = controller.listen(move |data| {
+        let Some(res) = &data.result else {
+            return Ok(false);
+        };
+
+        match res {
+            WebsocketData::MarketHandshake => Ok(true),
+            _ => Ok(false),
+        }
     });
 
     let result = join_handle.await?;
@@ -35,9 +41,15 @@ async fn handshake() -> Result<()> {
 async fn book_subscription() -> Result<()> {
     let mut controller = get_controller_sandbox().await?;
 
-    let join_handle = controller.listen(move |data| match data {
-        WebsocketData::Book(_book) => Ok(true),
-        _ => Ok(false),
+    let join_handle = controller.listen(move |data| {
+        let Some(res) = &data.result else {
+            return Ok(false);
+        };
+
+        match res {
+            WebsocketData::Book(_book) => Ok(true),
+            _ => Ok(false),
+        }
     });
 
     controller
@@ -56,9 +68,15 @@ async fn book_subscription() -> Result<()> {
 async fn ticker_subscription() -> Result<()> {
     let mut controller = get_controller_sandbox().await?;
 
-    let join_handle = controller.listen(move |data| match data {
-        WebsocketData::Ticker(_ticker) => Ok(true),
-        _ => Ok(false),
+    let join_handle = controller.listen(move |data| {
+        let Some(res) = &data.result else {
+            return Ok(false);
+        };
+
+        match res {
+            WebsocketData::Ticker(_ticker) => Ok(true),
+            _ => Ok(false),
+        }
     });
 
     controller
@@ -77,9 +95,15 @@ async fn ticker_subscription() -> Result<()> {
 async fn trade_subscription() -> Result<()> {
     let mut controller = get_controller_sandbox().await?;
 
-    let join_handle = controller.listen(move |data| match data {
-        WebsocketData::Trade(_trade) => Ok(true),
-        _ => Ok(false),
+    let join_handle = controller.listen(move |data| {
+        let Some(res) = &data.result else {
+            return Ok(false);
+        };
+
+        match res {
+            WebsocketData::Trade(_trade) => Ok(true),
+            _ => Ok(false),
+        }
     });
 
     controller
@@ -98,9 +122,15 @@ async fn trade_subscription() -> Result<()> {
 async fn candlestick_subscription() -> Result<()> {
     let mut controller = get_controller_sandbox().await?;
 
-    let join_handle = controller.listen(move |data| match data {
-        WebsocketData::Candlestick(_candlestick) => Ok(true),
-        _ => Ok(false),
+    let join_handle = controller.listen(move |data| {
+        let Some(res) = &data.result else {
+            return Ok(false);
+        };
+
+        match res {
+            WebsocketData::Candlestick(_candlestick) => Ok(true),
+            _ => Ok(false),
+        }
     });
 
     controller
@@ -119,9 +149,15 @@ async fn candlestick_subscription() -> Result<()> {
 async fn otc_book_subscription() -> Result<()> {
     let mut controller = get_controller_sandbox().await?;
 
-    let join_handle = controller.listen(move |data| match data {
-        WebsocketData::OtcBook(_otc_book) => Ok(true),
-        _ => Ok(false),
+    let join_handle = controller.listen(move |data| {
+        let Some(res) = &data.result else {
+            return Ok(false);
+        };
+
+        match res {
+            WebsocketData::OtcBook(_otc_book) => Ok(true),
+            _ => Ok(false),
+        }
     });
 
     controller

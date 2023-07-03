@@ -9,6 +9,7 @@ use sha2::Sha256;
 use tokio::sync::Mutex;
 use tokio_tungstenite::tungstenite::Message;
 
+use crate::api_response::ApiResponse;
 pub use crate::error::ApiError;
 use crate::utils::action::ActionStore;
 use crate::websocket::WebsocketData;
@@ -23,7 +24,7 @@ pub type MessageSender = Arc<Mutex<UnboundedSender<Message>>>;
 pub type ActionStoreSender = Arc<Mutex<UnboundedSender<ActionStore>>>;
 
 /// Data sender type.
-pub type DataSender = Arc<Mutex<UnboundedSender<WebsocketData>>>;
+pub type DataSender = Arc<Mutex<UnboundedSender<ApiResponse<WebsocketData>>>>;
 
 /// Data reciever type.
-pub type DataReciever = Arc<Mutex<UnboundedReceiver<WebsocketData>>>;
+pub type DataReciever = Arc<Mutex<UnboundedReceiver<ApiResponse<WebsocketData>>>>;

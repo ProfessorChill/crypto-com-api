@@ -11,6 +11,7 @@ use tokio::task::JoinHandle;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 use crate::api_request::ApiRequestBuilder;
+use crate::api_response::ApiResponse;
 use crate::error::{convert_tungstenite_error, processing_error};
 use crate::prelude::{DataSender, MessageSender};
 use crate::utils::action::ActionStore;
@@ -86,7 +87,9 @@ pub async fn initialize_market_stream(
         let data_tx_arc = data_tx_arc.clone();
         let data_tx = data_tx_arc.lock().await;
 
-        data_tx.unbounded_send(WebsocketData::MarketHandshake)?;
+        data_tx.unbounded_send(
+            ApiResponse::<WebsocketData>::default().websocket_data(WebsocketData::MarketHandshake),
+        )?;
     }
 
     let (market_write, market_read) = market_stream.split();
@@ -157,6 +160,7 @@ pub fn subscribe(tx: &UnboundedSender<Message>, id: u64, channels: Vec<String>) 
 async fn process_subscribe_result(
     data_tx: DataSender,
     res: &serde_json::Value,
+    msg: &ApiResponse<serde_json::Value>,
     sub: &RawRes,
 ) -> Result<()> {
     let data_tx = data_tx.lock().await;
@@ -164,24 +168,25 @@ async fn process_subscribe_result(
     match sub.channel.as_str() {
         "book" => {
             let book_data = reprocess_data::<RawBookRes, BookRes>(&res.to_string())?;
-            data_tx.unbounded_send(WebsocketData::Book(book_data))?;
+            data_tx.unbounded_send(msg.websocket_data(WebsocketData::Book(book_data)))?;
         }
         "ticker" => {
             let ticker_data = reprocess_data::<RawTickerRes, TickerRes>(&res.to_string())?;
-            data_tx.unbounded_send(WebsocketData::Ticker(ticker_data))?;
+            data_tx.unbounded_send(msg.websocket_data(WebsocketData::Ticker(ticker_data)))?;
         }
         "trade" => {
             let trade_data = reprocess_data::<RawTradeRes, TradeRes>(&res.to_string())?;
-            data_tx.unbounded_send(WebsocketData::Trade(trade_data))?;
+            data_tx.unbounded_send(msg.websocket_data(WebsocketData::Trade(trade_data)))?;
         }
         "candlestick" => {
             let candlestick_data =
                 reprocess_data::<RawCandlestickRes, CandlestickRes>(&res.to_string())?;
-            data_tx.unbounded_send(WebsocketData::Candlestick(candlestick_data))?;
+            data_tx
+                .unbounded_send(msg.websocket_data(WebsocketData::Candlestick(candlestick_data)))?;
         }
         "otc_book" => {
             let otc_book_data = reprocess_data::<RawOtcBookRes, OtcBookRes>(&res.to_string())?;
-            data_tx.unbounded_send(WebsocketData::OtcBook(otc_book_data))?;
+            data_tx.unbounded_send(msg.websocket_data(WebsocketData::OtcBook(otc_book_data)))?;
         }
         _ => {}
     }
@@ -208,17 +213,19 @@ pub async fn process_market(
     data_tx: DataSender,
 ) -> Result<()> {
     let msg = message_to_api_response(&market_tx, &message).await?;
+    let method = msg.method.as_str();
+    let res = msg.result.clone();
 
-    match msg.method.as_str() {
+    match method {
         "public/heartbeat" => {
             let market_tx = market_tx.lock().await;
             let data_tx = data_tx.lock().await;
 
             respond_heartbeat(&market_tx, msg.id as u64)?;
-            data_tx.unbounded_send(WebsocketData::MarketHeartbeat)?;
+            data_tx.unbounded_send(msg.websocket_data(WebsocketData::MarketHeartbeat))?;
         }
         "subscribe" => {
-            let Some(res) = msg.result else {
+            let Some(res) = &res else {
                 log::warn!("Subscribe message had no result. {msg:#?}");
 
                 return Ok(());
@@ -226,7 +233,7 @@ pub async fn process_market(
 
             let sub_result: RawRes = serde_json::from_str(&res.to_string())?;
 
-            process_subscribe_result(data_tx, &res, &sub_result).await?;
+            process_subscribe_result(data_tx, res, &msg, &sub_result).await?;
         }
         _ => {}
     }

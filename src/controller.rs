@@ -8,6 +8,7 @@ use futures_util::StreamExt;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
+use crate::api_response::ApiResponse;
 use crate::prelude::{ActionStoreSender, DataReciever, DataSender};
 use crate::utils::action::{Action, ActionStore};
 use crate::utils::config::Config;
@@ -83,7 +84,7 @@ pub struct ControllerBuilder<A, U, M> {
 impl ControllerBuilder<NoAuth, NoUserWs, NoMarketWs> {
     /// The base controller builder with no actions.
     pub fn new() -> Self {
-        let (data_tx, data_rx) = futures_channel::mpsc::unbounded::<WebsocketData>();
+        let (data_tx, data_rx) = futures_channel::mpsc::unbounded::<ApiResponse<WebsocketData>>();
 
         Self {
             config: Config::default(),
@@ -241,7 +242,7 @@ impl<U, W> Controller<U, W> {
     /// processing data, or `Ok(true)` to break the loop and stop processing data.
     pub fn listen<F>(&self, mut async_fn: F) -> JoinHandle<Result<()>>
     where
-        F: FnMut(WebsocketData) -> Result<bool> + Send + 'static,
+        F: FnMut(ApiResponse<WebsocketData>) -> Result<bool> + Send + 'static,
     {
         let data_rx_arc = self.get_data_reader();
 

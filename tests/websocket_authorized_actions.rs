@@ -33,15 +33,22 @@ async fn auth() -> AnyhowResult<()> {
 
     let mut controller = get_controller().await?;
 
-    let join_handle = controller.listen(move |data| match data {
-        WebsocketData::Auth(code) => {
-            if code > 0 {
-                anyhow::bail!(ApiError::AuthFail(code));
-            }
+    let join_handle = controller.listen(move |data| {
+        let Some(res) = &data.result else {
+            return Ok(false);
+        };
+        let code = data.code.unwrap_or(0);
 
-            Ok(true)
+        match res {
+            WebsocketData::Auth => {
+                if code > 0 {
+                    anyhow::bail!(ApiError::AuthFail(code));
+                }
+
+                Ok(true)
+            }
+            _ => Ok(false),
         }
-        _ => Ok(false),
     });
 
     controller
@@ -64,16 +71,23 @@ async fn get_account_summary() -> AnyhowResult<()> {
 
     let mut controller = get_controller().await?;
 
-    let join_handle = controller.listen(move |data| match data {
-        WebsocketData::Auth(code) => {
-            if code > 0 {
-                anyhow::bail!(ApiError::AuthFail(code))
-            } else {
+    let join_handle = controller.listen(move |data| {
+        let Some(res) = &data.result else {
+            return Ok(false);
+        };
+        let code = data.code.unwrap_or(0);
+
+        match res {
+            WebsocketData::Auth => {
+                if code > 0 {
+                    anyhow::bail!(ApiError::AuthFail(code))
+                }
+
                 Ok(false)
             }
+            WebsocketData::GetAccountSummary(_account_summary) => Ok(true),
+            _ => Ok(false),
         }
-        WebsocketData::GetAccountSummary(_account_summary) => Ok(true),
-        _ => Ok(false),
     });
 
     controller
@@ -102,16 +116,23 @@ async fn get_order_history() -> AnyhowResult<()> {
 
     let mut controller = get_controller().await?;
 
-    let join_handle = controller.listen(move |data| match data {
-        WebsocketData::Auth(code) => {
-            if code > 0 {
-                anyhow::bail!(ApiError::AuthFail(code))
-            } else {
+    let join_handle = controller.listen(move |data| {
+        let Some(res) = &data.result else {
+            return Ok(false);
+        };
+        let code = data.code.unwrap_or(0);
+
+        match res {
+            WebsocketData::Auth => {
+                if code > 0 {
+                    anyhow::bail!(ApiError::AuthFail(code))
+                }
+
                 Ok(false)
             }
+            WebsocketData::GetOrderHistory(_order_history) => Ok(true),
+            _ => Ok(false),
         }
-        WebsocketData::GetOrderHistory(_order_history) => Ok(true),
-        _ => Ok(false),
     });
 
     controller
@@ -144,16 +165,23 @@ async fn get_open_orders() -> AnyhowResult<()> {
 
     let mut controller = get_controller().await?;
 
-    let join_handle = controller.listen(move |data| match data {
-        WebsocketData::Auth(code) => {
-            if code > 0 {
-                anyhow::bail!(ApiError::AuthFail(code))
-            } else {
+    let join_handle = controller.listen(move |data| {
+        let Some(res) = &data.result else {
+            return Ok(false);
+        };
+        let code = data.code.unwrap_or(0);
+
+        match res {
+            WebsocketData::Auth => {
+                if code > 0 {
+                    anyhow::bail!(ApiError::AuthFail(code))
+                }
+
                 Ok(false)
             }
+            WebsocketData::GetOpenOrders(_open_orders) => Ok(true),
+            _ => Ok(false),
         }
-        WebsocketData::GetOpenOrders(_open_orders) => Ok(true),
-        _ => Ok(false),
     });
 
     controller
@@ -184,16 +212,23 @@ async fn get_trades() -> AnyhowResult<()> {
 
     let mut controller = get_controller().await?;
 
-    let join_handle = controller.listen(move |data| match data {
-        WebsocketData::Auth(code) => {
-            if code > 0 {
-                anyhow::bail!(ApiError::AuthFail(code))
-            } else {
-                Ok(false)
+    let join_handle = controller.listen(move |data| {
+        let Some(res) = &data.result else {
+            return Ok(false);
+        };
+        let code = data.code.unwrap_or(0);
+
+        match res {
+            WebsocketData::Auth => {
+                if code > 0 {
+                    anyhow::bail!(ApiError::AuthFail(code))
+                } else {
+                    Ok(false)
+                }
             }
+            WebsocketData::GetTrades(_trades) => Ok(true),
+            _ => Ok(false),
         }
-        WebsocketData::GetTrades(_trades) => Ok(true),
-        _ => Ok(false),
     });
 
     controller

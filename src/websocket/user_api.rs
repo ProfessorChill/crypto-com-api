@@ -74,7 +74,9 @@ pub async fn initialize_user_stream(
         let data_tx_arc = data_tx_arc.clone();
         let data_tx = data_tx_arc.lock().await;
 
-        data_tx.unbounded_send(WebsocketData::UserHandshake)?;
+        data_tx.unbounded_send(
+            ApiResponse::<WebsocketData>::default().websocket_data(WebsocketData::UserHandshake),
+        )?;
     }
 
     let (user_write, user_read) = user_stream.split();
@@ -115,6 +117,7 @@ pub async fn initialize_user_stream(
 async fn process_subscribe_result(
     data_tx: DataSender,
     res: &serde_json::Value,
+    msg: &ApiResponse<serde_json::Value>,
     sub: &RawRes,
 ) -> Result<()> {
     match sub.channel.as_str() {
@@ -122,20 +125,24 @@ async fn process_subscribe_result(
             let data_tx = data_tx.lock().await;
 
             let user_order_data: UserOrderRes = serde_json::from_str(&res.to_string())?;
-            data_tx.unbounded_send(WebsocketData::UserOrder(user_order_data))?;
+            data_tx
+                .unbounded_send(msg.websocket_data(WebsocketData::UserOrder(user_order_data)))?;
         }
         "user.trade" => {
             let data_tx = data_tx.lock().await;
 
             let user_trade_data =
                 reprocess_data::<RawUserTradeRes, UserTradeRes>(&res.to_string())?;
-            data_tx.unbounded_send(WebsocketData::UserTrade(user_trade_data))?;
+            data_tx
+                .unbounded_send(msg.websocket_data(WebsocketData::UserTrade(user_trade_data)))?;
         }
         "user.balance" => {
             let data_tx = data_tx.lock().await;
 
             let user_balance_data: Vec<UserBalance> = serde_json::from_str(&res.to_string())?;
-            data_tx.unbounded_send(WebsocketData::UserBalance(user_balance_data))?;
+            data_tx.unbounded_send(
+                msg.websocket_data(WebsocketData::UserBalance(user_balance_data)),
+            )?;
         }
         _ => {}
     }
@@ -163,7 +170,7 @@ async fn private_create_withdrawal(
     let tx = arc_tx.lock().await;
 
     let create_withdrawal_data: CreateWithdrawal = serde_json::from_str(&res.to_string())?;
-    tx.unbounded_send(WebsocketData::CreateWithdrawal(create_withdrawal_data))?;
+    tx.unbounded_send(msg.websocket_data(WebsocketData::CreateWithdrawal(create_withdrawal_data)))?;
     drop(tx);
 
     Ok(())
@@ -189,7 +196,9 @@ async fn private_get_withdrawal_history(
     let tx = arc_tx.lock().await;
 
     let withdrawal_history_data: WithdrawalHistory = serde_json::from_str(&res.to_string())?;
-    tx.unbounded_send(WebsocketData::GetWithdrawalHistory(withdrawal_history_data))?;
+    tx.unbounded_send(
+        msg.websocket_data(WebsocketData::GetWithdrawalHistory(withdrawal_history_data)),
+    )?;
     drop(tx);
 
     Ok(())
@@ -215,7 +224,7 @@ async fn private_get_account_summary(
     let tx = arc_tx.lock().await;
 
     let account_summary_data: AccountSummary = serde_json::from_str(&res.to_string())?;
-    tx.unbounded_send(WebsocketData::GetAccountSummary(account_summary_data))?;
+    tx.unbounded_send(msg.websocket_data(WebsocketData::GetAccountSummary(account_summary_data)))?;
     drop(tx);
 
     Ok(())
@@ -241,7 +250,7 @@ async fn private_create_order(
     let tx = arc_tx.lock().await;
 
     let create_order_data: CreateOrder = serde_json::from_str(&res.to_string())?;
-    tx.unbounded_send(WebsocketData::CreateOrder(create_order_data))?;
+    tx.unbounded_send(msg.websocket_data(WebsocketData::CreateOrder(create_order_data)))?;
     drop(tx);
 
     Ok(())
@@ -267,7 +276,7 @@ async fn private_create_order_list(
     let tx = arc_tx.lock().await;
 
     let create_order_list_data: CreateOrderList = serde_json::from_str(&res.to_string())?;
-    tx.unbounded_send(WebsocketData::CreateOrderList(create_order_list_data))?;
+    tx.unbounded_send(msg.websocket_data(WebsocketData::CreateOrderList(create_order_list_data)))?;
     drop(tx);
 
     Ok(())
@@ -293,7 +302,7 @@ async fn private_cancel_order_list(
     let tx = arc_tx.lock().await;
 
     let cancel_order_list_data: CancelOrderList = serde_json::from_str(&res.to_string())?;
-    tx.unbounded_send(WebsocketData::CancelOrderList(cancel_order_list_data))?;
+    tx.unbounded_send(msg.websocket_data(WebsocketData::CancelOrderList(cancel_order_list_data)))?;
     drop(tx);
 
     Ok(())
@@ -312,7 +321,7 @@ async fn private_cancel_all_orders(
 ) -> Result<()> {
     let tx = arc_tx.lock().await;
 
-    tx.unbounded_send(WebsocketData::CancelAllOrders(msg.id as u64))?;
+    tx.unbounded_send(msg.websocket_data(WebsocketData::CancelAllOrders))?;
     drop(tx);
 
     Ok(())
@@ -338,7 +347,7 @@ async fn private_get_order_history(
     let tx = arc_tx.lock().await;
 
     let order_history_data: OrderHistory = serde_json::from_str(&res.to_string())?;
-    tx.unbounded_send(WebsocketData::GetOrderHistory(order_history_data))?;
+    tx.unbounded_send(msg.websocket_data(WebsocketData::GetOrderHistory(order_history_data)))?;
     drop(tx);
 
     Ok(())
@@ -364,7 +373,7 @@ async fn private_get_open_orders(
     let tx = arc_tx.lock().await;
 
     let open_orders_data: OpenOrders = serde_json::from_str(&res.to_string())?;
-    tx.unbounded_send(WebsocketData::GetOpenOrders(open_orders_data))?;
+    tx.unbounded_send(msg.websocket_data(WebsocketData::GetOpenOrders(open_orders_data)))?;
     drop(tx);
 
     Ok(())
@@ -390,7 +399,7 @@ async fn private_get_order_detail(
     let tx = arc_tx.lock().await;
 
     let order_detail_data: OrderDetail = serde_json::from_str(&res.to_string())?;
-    tx.unbounded_send(WebsocketData::GetOrderDetail(order_detail_data))?;
+    tx.unbounded_send(msg.websocket_data(WebsocketData::GetOrderDetail(order_detail_data)))?;
     drop(tx);
 
     Ok(())
@@ -416,7 +425,7 @@ async fn private_get_trades(
     let tx = arc_tx.lock().await;
 
     let trades_data: Trades = serde_json::from_str(&res.to_string())?;
-    tx.unbounded_send(WebsocketData::GetTrades(trades_data))?;
+    tx.unbounded_send(msg.websocket_data(WebsocketData::GetTrades(trades_data)))?;
     drop(tx);
 
     Ok(())
@@ -441,19 +450,21 @@ pub async fn process_user(
     data_tx: DataSender,
 ) -> Result<()> {
     let msg = message_to_api_response(&user_tx, &message).await?;
+    let method = msg.method.as_str();
+    let res = msg.result.clone();
 
-    match msg.method.as_str() {
+    match method {
         "public/heartbeat" => {
             let user_tx = user_tx.lock().await;
             let data_tx = data_tx.lock().await;
 
             respond_heartbeat(&user_tx, msg.id as u64)?;
-            data_tx.unbounded_send(WebsocketData::UserHeartbeat)?;
+            data_tx.unbounded_send(msg.websocket_data(WebsocketData::UserHeartbeat))?;
         }
         "public/auth" => {
             let data_tx = data_tx.lock().await;
 
-            data_tx.unbounded_send(WebsocketData::Auth(msg.code.unwrap_or(0) as u64))?;
+            data_tx.unbounded_send(msg.websocket_data(WebsocketData::Auth))?;
         }
         "private/create-withdrawal" => private_create_withdrawal(&data_tx, &msg).await?,
         "private/get-withdrawal-history" => private_get_withdrawal_history(&data_tx, &msg).await?,
@@ -467,7 +478,7 @@ pub async fn process_user(
         "private/get-order-detail" => private_get_order_detail(&data_tx, &msg).await?,
         "private/get-trades" => private_get_trades(&data_tx, &msg).await?,
         "subscribe" => {
-            let Some(res) = msg.result else {
+            let Some(res) = &res else {
                 log::warn!("Subscribe message had no result. {msg:#?}");
 
                 return Ok(());
@@ -475,7 +486,7 @@ pub async fn process_user(
 
             let sub_result: RawRes = serde_json::from_str(&res.to_string())?;
 
-            process_subscribe_result(data_tx, &res, &sub_result).await?;
+            process_subscribe_result(data_tx, res, &msg, &sub_result).await?;
         }
         _ => {}
     }
