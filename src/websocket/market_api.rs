@@ -217,18 +217,6 @@ pub async fn process_market(
             respond_heartbeat(&market_tx, msg.id as u64)?;
             data_tx.unbounded_send(WebsocketData::MarketHeartbeat)?;
         }
-        "public/auth" => {
-            if let Some(code) = msg.code {
-                if code > 0 {
-                    log::error!(
-                        "There was an error authorizing user: {:?}",
-                        msg.detail_message
-                    );
-                }
-            }
-
-            log::info!("Auth confirmed!");
-        }
         "subscribe" => {
             let Some(res) = msg.result else {
                 log::warn!("Subscribe message had no result. {msg:#?}");
