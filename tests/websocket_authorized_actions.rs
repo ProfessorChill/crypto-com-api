@@ -181,7 +181,6 @@ async fn get_open_orders() -> AnyhowResult<()> {
 #[tokio::test]
 async fn get_trades() -> AnyhowResult<()> {
     dotenv::dotenv()?;
-    let _ = env_logger::init();
 
     let mut controller = get_controller().await?;
 
