@@ -104,6 +104,3 @@ Add tests that should panic to data types.
 Finish creating the missing routes and adding tests where I reasonably can.
 
 Create the REST routes, add tests, and finalize that section.
-
-Find a way to make reading data from the server more appealing than having to get the data reader from
-the controller, cloning it, then creating a tokio handle to read said data.
