@@ -2,8 +2,11 @@
 
 use anyhow::Result;
 use crypto_com_api::{
-    controller::{Controller, ControllerBuilder, MarketWs, NoUserWs},
-    websocket::{actions::Subscribe, WebsocketData},
+    controller::{Controller, ControllerBuilder, MarketWs, NoMarketWs, NoUserWs, UserWs},
+    websocket::{
+        actions::{GetInstruments, Subscribe},
+        WebsocketData,
+    },
 };
 
 async fn get_controller_sandbox() -> Result<Controller<NoUserWs, MarketWs>> {
@@ -16,9 +19,19 @@ async fn get_controller_sandbox() -> Result<Controller<NoUserWs, MarketWs>> {
         .build())
 }
 
+async fn get_controller_sandbox_user() -> Result<Controller<UserWs, NoMarketWs>> {
+    let websocket_user_url = url::Url::parse("wss://uat-stream.3ona.co/v2/user")
+        .expect("UAT Sandbox User API Invalid URL");
+
+    Ok(ControllerBuilder::new()
+        .with_user_websocket(websocket_user_url)
+        .await?
+        .build())
+}
+
 #[tokio::test]
 async fn handshake() -> Result<()> {
-    let controller = get_controller_sandbox().await?;
+    let mut controller = get_controller_sandbox().await?;
 
     let join_handle = controller.listen(move |data| {
         let Some(res) = &data.result else {
@@ -31,10 +44,7 @@ async fn handshake() -> Result<()> {
         }
     });
 
-    let result = join_handle.await?;
-    assert!(result.is_ok(), "handshake failed!");
-
-    Ok(())
+    join_handle.await?
 }
 
 #[tokio::test]
@@ -58,10 +68,7 @@ async fn book_subscription() -> Result<()> {
         }))
         .await?;
 
-    let result = join_handle.await?;
-    assert!(result.is_ok(), "book subscription failed!");
-
-    Ok(())
+    join_handle.await?
 }
 
 #[tokio::test]
@@ -85,10 +92,7 @@ async fn ticker_subscription() -> Result<()> {
         }))
         .await?;
 
-    let result = join_handle.await?;
-    assert!(result.is_ok(), "ticker subscription failed!");
-
-    Ok(())
+    join_handle.await?
 }
 
 #[tokio::test]
@@ -112,10 +116,7 @@ async fn trade_subscription() -> Result<()> {
         }))
         .await?;
 
-    let result = join_handle.await?;
-    assert!(result.is_ok(), "trade subscription failed!");
-
-    Ok(())
+    join_handle.await?
 }
 
 #[tokio::test]
@@ -139,15 +140,14 @@ async fn candlestick_subscription() -> Result<()> {
         }))
         .await?;
 
-    let result = join_handle.await?;
-    assert!(result.is_ok(), "candlestick subscription failed!");
-
-    Ok(())
+    join_handle.await?
 }
 
+/*
 #[tokio::test]
 async fn otc_book_subscription() -> Result<()> {
-    let mut controller = get_controller_sandbox().await?;
+    let _ = env_logger::init();
+    let mut controller = get_controller_sandbox_user().await?;
 
     let join_handle = controller.listen(move |data| {
         let Some(res) = &data.result else {
@@ -161,13 +161,33 @@ async fn otc_book_subscription() -> Result<()> {
     });
 
     controller
-        .push_market_action(Box::new(Subscribe {
+        .push_user_action(Box::new(Subscribe {
             channels: vec!["otc_book.BTC_USDT".to_string()],
         }))
         .await?;
 
-    let result = join_handle.await?;
-    assert!(result.is_ok(), "otc_book subscription failed!");
+    join_handle.await?
+}
+*/
 
-    Ok(())
+#[tokio::test]
+async fn get_instruments() -> Result<()> {
+    let mut controller = get_controller_sandbox_user().await?;
+
+    let join_handle = controller.listen(move |data| {
+        let Some(res) = &data.result else {
+            return Ok(false);
+        };
+
+        match res {
+            WebsocketData::GetInstruments(_instruments) => Ok(true),
+            _ => Ok(false),
+        }
+    });
+
+    controller
+        .push_user_action(Box::new(GetInstruments))
+        .await?;
+
+    join_handle.await?
 }

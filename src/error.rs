@@ -4,7 +4,7 @@ use std::num::{ParseFloatError, ParseIntError};
 
 use anyhow::Error as AnyError;
 
-use crate::websocket::WebsocketData;
+use crate::{api_response::ApiResponse, websocket::WebsocketData};
 
 /// Handles conversion of an anyhow error into a ApiError when `process_user` or `process_market`
 /// encounters an error.
@@ -60,6 +60,12 @@ pub enum ApiError {
     /// An error we don't handle at the time.
     #[error("we aren't handling this right now")]
     Unhandled,
+    /// A subscription that we are not handling.
+    #[error("unsupported subscription `{0:#?}`")]
+    UnsupportedSubscription(ApiResponse<serde_json::Value>),
+    /// A method that we are not handling.
+    #[error("unsupported method `{0:#?}`")]
+    UnsupportedMethod(ApiResponse<serde_json::Value>),
 }
 
 impl From<ParseFloatError> for ApiError {

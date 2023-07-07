@@ -7,7 +7,7 @@ use tokio_tungstenite::tungstenite::Message;
 
 use crate::utils::action::Action;
 use crate::websocket::auth;
-use crate::websocket::send_params_msg;
+use crate::websocket::{send_msg, send_params_msg};
 
 pub mod spot_trading_api;
 pub mod wallet_management_api;
@@ -37,5 +37,15 @@ pub struct Auth {
 impl Action for Auth {
     fn process(&self, tx: &UnboundedSender<Message>, id: u64) -> Result<()> {
         auth(tx, id, &self.api_key, &self.secret_key)
+    }
+}
+
+/// Get instruments action.
+#[derive(Debug)]
+pub struct GetInstruments;
+
+impl Action for GetInstruments {
+    fn process(&self, tx: &UnboundedSender<Message>, id: u64) -> Result<()> {
+        send_msg(tx, id, "public/get-instruments")
     }
 }

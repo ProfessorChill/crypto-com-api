@@ -34,7 +34,11 @@ pub async fn get_instruments(config: &Config) -> Result<ApiResponse<InstrumentsR
     Ok(ApiResponse {
         id: res.id,
         method: res.method,
-        result: res.result.as_ref().map(InstrumentsRes::from),
+        result: if let Some(raw_instrument_res) = res.result {
+            Some(InstrumentsRes::try_from(raw_instrument_res)?)
+        } else {
+            None
+        },
         code: res.code,
         message: res.message,
         original: res.original,

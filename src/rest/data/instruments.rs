@@ -2,6 +2,8 @@
 
 use serde::Deserialize;
 
+use crate::prelude::ApiError;
+
 /// The raw instrument data response.
 #[derive(Deserialize, Debug)]
 pub struct RawInstrument {
@@ -79,9 +81,11 @@ pub struct Instrument {
     pub price_tick_size: f64,
 }
 
-impl From<&RawInstrument> for Instrument {
-    fn from(value: &RawInstrument) -> Self {
-        Self {
+impl TryFrom<&RawInstrument> for Instrument {
+    type Error = ApiError;
+
+    fn try_from(value: &RawInstrument) -> Result<Self, Self::Error> {
+        Ok(Self {
             instrument_name: value.instrument_name.clone(),
             quote_currency: value.quote_currency.clone(),
             base_currency: value.base_currency.clone(),
@@ -90,32 +94,14 @@ impl From<&RawInstrument> for Instrument {
             margin_trading_enabled: value.margin_trading_enabled,
             margin_trading_enabled_5x: value.margin_trading_enabled_5x,
             margin_trading_enabled_10x: value.margin_trading_enabled_10x,
-            max_quantity: value
-                .max_quantity
-                .parse::<f64>()
-                .expect("Unable to parse f64 of max_quantity"),
-            min_quantity: value
-                .min_quantity
-                .parse::<f64>()
-                .expect("Unable to parse f64 of min_quantity"),
-            max_price: value
-                .max_price
-                .parse::<f64>()
-                .expect("Unable to parse f64 of max_price"),
-            min_price: value
-                .min_price
-                .parse::<f64>()
-                .expect("Unable to parse f64 of min_price"),
+            max_quantity: value.max_quantity.parse::<f64>()?,
+            min_quantity: value.min_quantity.parse::<f64>()?,
+            max_price: value.max_price.parse::<f64>()?,
+            min_price: value.min_price.parse::<f64>()?,
             last_update_date: value.last_update_date,
-            quantity_tick_size: value
-                .quantity_tick_size
-                .parse::<f64>()
-                .expect("Unable to parse f64 of quantity_tick_size"),
-            price_tick_size: value
-                .price_tick_size
-                .parse::<f64>()
-                .expect("Unable to parse f64 of price_tick_size"),
-        }
+            quantity_tick_size: value.quantity_tick_size.parse::<f64>()?,
+            price_tick_size: value.price_tick_size.parse::<f64>()?,
+        })
     }
 }
 
@@ -126,26 +112,30 @@ pub struct InstrumentsRes {
     pub instruments: Vec<Instrument>,
 }
 
-impl From<&RawInstrumentsRes> for InstrumentsRes {
-    fn from(value: &RawInstrumentsRes) -> Self {
-        Self {
-            instruments: value
-                .instruments
-                .iter()
-                .map(Instrument::from)
-                .collect::<Vec<Instrument>>(),
+impl TryFrom<&RawInstrumentsRes> for InstrumentsRes {
+    type Error = ApiError;
+
+    fn try_from(value: &RawInstrumentsRes) -> Result<Self, Self::Error> {
+        let mut instruments = vec![];
+
+        for instrument in &value.instruments {
+            instruments.push(Instrument::try_from(instrument)?);
         }
+
+        Ok(Self { instruments })
     }
 }
 
-impl From<RawInstrumentsRes> for InstrumentsRes {
-    fn from(value: RawInstrumentsRes) -> Self {
-        Self {
-            instruments: value
-                .instruments
-                .iter()
-                .map(Instrument::from)
-                .collect::<Vec<Instrument>>(),
+impl TryFrom<RawInstrumentsRes> for InstrumentsRes {
+    type Error = ApiError;
+
+    fn try_from(value: RawInstrumentsRes) -> Result<Self, Self::Error> {
+        let mut instruments = vec![];
+
+        for instrument in &value.instruments {
+            instruments.push(Instrument::try_from(instrument)?);
         }
+
+        Ok(Self { instruments })
     }
 }

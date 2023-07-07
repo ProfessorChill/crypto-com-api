@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use futures_channel::mpsc::UnboundedSender;
+use futures_util::future::Either;
 use futures_util::{future, pin_mut, StreamExt, TryStreamExt};
 use serde::Serialize;
 use tokio::sync::Mutex;
@@ -13,7 +14,7 @@ use tokio_tungstenite::{connect_async, tungstenite::Message};
 use crate::api_request::ApiRequestBuilder;
 use crate::api_response::ApiResponse;
 use crate::error::{convert_tungstenite_error, processing_error};
-use crate::prelude::{DataSender, MessageSender};
+use crate::prelude::{ApiError, DataSender, MessageSender};
 use crate::utils::action::ActionStore;
 use crate::utils::config::Config;
 use crate::utils::{message_to_api_response, reprocess_data};
@@ -49,20 +50,20 @@ pub async fn process_market_actions(action: ActionStore, market_tx: MessageSende
 /// Initialize the market action processing system.
 pub async fn initialize_market_actions(
     market_tx_arc: MessageSender,
-) -> UnboundedSender<ActionStore> {
+) -> (JoinHandle<Result<()>>, UnboundedSender<ActionStore>) {
     let (actions_tx, mut actions_rx) = futures_channel::mpsc::unbounded::<ActionStore>();
 
-    tokio::spawn(async move {
+    let join_handle = tokio::spawn(async move {
         let market_tx_arc = market_tx_arc.clone();
 
         while let Some(item) = actions_rx.next().await {
-            process_market_actions(item, market_tx_arc.clone())
-                .await
-                .expect("Failed to process market action");
+            process_market_actions(item, market_tx_arc.clone()).await?;
         }
+
+        Ok(())
     });
 
-    actions_tx
+    (join_handle, actions_tx)
 }
 
 /// Initialize the websocket market stream.
@@ -113,10 +114,21 @@ pub async fn initialize_market_stream(
             };
 
             pin_mut!(rx_to_market, market_to_process);
-            future::select(rx_to_market, market_to_process).await;
-            log::info!("Market process completed");
+            match future::select(rx_to_market, market_to_process).await {
+                Either::Left((_rx_to_market_res, _)) => {
+                    log::info!("Market process completed");
 
-            Ok(())
+                    Ok(())
+                }
+                Either::Right((market_to_process_res, _)) => match market_to_process_res {
+                    Ok(_) => {
+                        log::info!("Market process completed");
+
+                        Ok(())
+                    }
+                    Err(err) => anyhow::bail!(err),
+                },
+            }
         })
     };
 
@@ -188,7 +200,7 @@ async fn process_subscribe_result(
             let otc_book_data = reprocess_data::<RawOtcBookRes, OtcBookRes>(&res.to_string())?;
             data_tx.unbounded_send(msg.websocket_data(WebsocketData::OtcBook(otc_book_data)))?;
         }
-        _ => {}
+        _ => anyhow::bail!(ApiError::UnsupportedSubscription(msg.clone())),
     }
 
     Ok(())
@@ -235,7 +247,8 @@ pub async fn process_market(
 
             process_subscribe_result(data_tx, res, &msg, &sub_result).await?;
         }
-        _ => {}
+        "ping" => {}
+        _ => anyhow::bail!(ApiError::UnsupportedMethod(msg.clone())),
     }
 
     Ok(())

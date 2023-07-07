@@ -82,16 +82,6 @@ SECRET_KEY=YOUR_SECRET_KEY
 ```
 
 ## TODO
-
-Make initialization of `tokio` threads return a join handle to make it possible to have crashing and
-non-crashing errors. As of right now, if `serde_json` were to encounter an error deserializing the
-value from a websocket response the thread would never crash and it would forever continue looping
-without handling the error.
-
-Make `process_user` and `process_market` exit the thread upon encountering a critical error instead
-of simply waiting for the next piece of data from the stream and only storing the error to be mapped
-after the thread closes.
-
 Add tests that should panic to data types.
 
 Finish creating the missing routes and adding tests where I reasonably can.

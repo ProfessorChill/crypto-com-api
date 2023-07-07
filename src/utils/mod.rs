@@ -124,7 +124,10 @@ pub async fn message_to_api_response(
             tx.unbounded_send(Message::Pong(msg.clone()))?;
             drop(tx);
 
-            ApiResponse::default()
+            ApiResponse {
+                method: "ping".to_string(),
+                ..Default::default()
+            }
         }
         msg => {
             log::warn!("Unsupported message recieved.");

@@ -6,6 +6,7 @@ use serde::Serialize;
 use tokio_tungstenite::tungstenite::Message;
 
 use crate::api_request::ApiRequestBuilder;
+use crate::rest::data::InstrumentsRes;
 use crate::websocket::data::{
     AccountSummary, BookRes, CancelOrderList, CandlestickRes, CreateOrder, CreateOrderList,
     CreateWithdrawal, OpenOrders, OrderDetail, OrderHistory, OtcBookRes, TickerRes, TradeRes,
@@ -40,6 +41,8 @@ pub enum WebsocketData {
     UserTrade(UserTradeRes),
     /// Data from `user.balance` subscription.
     UserBalance(Vec<UserBalance>),
+    /// Data from `public/get-instruments`
+    GetInstruments(InstrumentsRes),
     /// Data from `private/create-withdrawal`.
     CreateWithdrawal(CreateWithdrawal),
     /// Data from `private/get-withdrawal-history`.
@@ -115,11 +118,7 @@ pub fn send_params_msg<T: Serialize>(
 ///
 /// Will return `Err` if `ApiRequestBuilder` does not contain method or if
 /// `get_order_history_message` fails to serialize into a string.
-pub fn send_msg<T: Serialize>(
-    tx: &UnboundedSender<Message>,
-    id: u64,
-    method: impl Into<String>,
-) -> Result<()> {
+pub fn send_msg(tx: &UnboundedSender<Message>, id: u64, method: impl Into<String>) -> Result<()> {
     let method = method.into();
 
     log::info!("Sending message to {}", method);

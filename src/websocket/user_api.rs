@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use futures_channel::mpsc::UnboundedSender;
+use futures_util::future::Either;
 use futures_util::{future, pin_mut, StreamExt, TryStreamExt};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
@@ -11,7 +12,8 @@ use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 use crate::api_response::ApiResponse;
 use crate::error::{convert_tungstenite_error, processing_error};
-use crate::prelude::{DataSender, MessageSender};
+use crate::prelude::{ApiError, DataSender, MessageSender};
+use crate::rest::data::{InstrumentsRes, RawInstrumentsRes};
 use crate::utils::action::ActionStore;
 use crate::utils::config::Config;
 use crate::utils::{message_to_api_response, reprocess_data};
@@ -36,20 +38,22 @@ pub async fn process_user_actions(action: ActionStore, user_tx: MessageSender) -
 }
 
 /// Initialize the market action processing system.
-pub async fn initialize_user_actions(user_tx_arc: MessageSender) -> UnboundedSender<ActionStore> {
+pub async fn initialize_user_actions(
+    user_tx_arc: MessageSender,
+) -> (JoinHandle<Result<()>>, UnboundedSender<ActionStore>) {
     let (actions_tx, mut actions_rx) = futures_channel::mpsc::unbounded::<ActionStore>();
 
-    tokio::spawn(async move {
+    let join_handle = tokio::spawn(async move {
         let user_tx_arc = user_tx_arc.clone();
 
         while let Some(item) = actions_rx.next().await {
-            process_user_actions(item, user_tx_arc.clone())
-                .await
-                .expect("Failed to process market action");
+            process_user_actions(item, user_tx_arc.clone()).await?;
         }
+
+        Ok(())
     });
 
-    actions_tx
+    (join_handle, actions_tx)
 }
 
 /// Initialize the user websocket stream.
@@ -99,53 +103,49 @@ pub async fn initialize_user_stream(
             };
 
             pin_mut!(rx_to_user, user_to_process);
-            future::select(rx_to_user, user_to_process).await;
-            log::info!("User process completed");
+            match future::select(rx_to_user, user_to_process).await {
+                Either::Left((_rx_to_user_res, _)) => {
+                    log::info!("User process completed");
 
-            Ok(())
+                    Ok(())
+                }
+                Either::Right((user_to_process_res, _)) => match user_to_process_res {
+                    Ok(_) => {
+                        log::info!("User process completed");
+
+                        Ok(())
+                    }
+                    Err(err) => anyhow::bail!(err),
+                },
+            }
         })
     };
 
     Ok((join_handle, user_tx_arc))
 }
 
-/// Process the subscribe return data from the market api.
+/// Handle the `public/get-instruments` result.
 ///
 /// # Errors
 ///
-/// Will return `Err` if subscription fails to process.
-async fn process_subscribe_result(
-    data_tx: DataSender,
-    res: &serde_json::Value,
+/// Will return [`serde_json::Error`] if [`serde_json::from_str`] cannot process the result string.
+///
+/// Will return [`futures_channel::mpsc::TrySendError`] if `unbounded_send` fails anywhere.
+async fn public_get_instruments(
+    arc_tx: &DataSender,
     msg: &ApiResponse<serde_json::Value>,
-    sub: &RawRes,
 ) -> Result<()> {
-    match sub.channel.as_str() {
-        "user.order" => {
-            let data_tx = data_tx.lock().await;
+    let Some(res) = &msg.result else {
+        log::warn!("Message had no result. {msg:#?}");
 
-            let user_order_data: UserOrderRes = serde_json::from_str(&res.to_string())?;
-            data_tx
-                .unbounded_send(msg.websocket_data(WebsocketData::UserOrder(user_order_data)))?;
-        }
-        "user.trade" => {
-            let data_tx = data_tx.lock().await;
+        return Ok(());
+    };
 
-            let user_trade_data =
-                reprocess_data::<RawUserTradeRes, UserTradeRes>(&res.to_string())?;
-            data_tx
-                .unbounded_send(msg.websocket_data(WebsocketData::UserTrade(user_trade_data)))?;
-        }
-        "user.balance" => {
-            let data_tx = data_tx.lock().await;
+    let tx = arc_tx.lock().await;
 
-            let user_balance_data: Vec<UserBalance> = serde_json::from_str(&res.to_string())?;
-            data_tx.unbounded_send(
-                msg.websocket_data(WebsocketData::UserBalance(user_balance_data)),
-            )?;
-        }
-        _ => {}
-    }
+    let instrument_data = reprocess_data::<RawInstrumentsRes, InstrumentsRes>(&res.to_string())?;
+    tx.unbounded_send(msg.websocket_data(WebsocketData::GetInstruments(instrument_data)))?;
+    drop(tx);
 
     Ok(())
 }
@@ -433,6 +433,47 @@ async fn private_get_trades(
     Ok(())
 }
 
+/// Process the subscribe return data from the market api.
+///
+/// # Errors
+///
+/// Will return `Err` if subscription fails to process.
+async fn process_subscribe_result(
+    data_tx: DataSender,
+    res: &serde_json::Value,
+    msg: &ApiResponse<serde_json::Value>,
+    sub: &RawRes,
+) -> Result<()> {
+    match sub.channel.as_str() {
+        "user.order" => {
+            let data_tx = data_tx.lock().await;
+
+            let user_order_data: UserOrderRes = serde_json::from_str(&res.to_string())?;
+            data_tx
+                .unbounded_send(msg.websocket_data(WebsocketData::UserOrder(user_order_data)))?;
+        }
+        "user.trade" => {
+            let data_tx = data_tx.lock().await;
+
+            let user_trade_data =
+                reprocess_data::<RawUserTradeRes, UserTradeRes>(&res.to_string())?;
+            data_tx
+                .unbounded_send(msg.websocket_data(WebsocketData::UserTrade(user_trade_data)))?;
+        }
+        "user.balance" => {
+            let data_tx = data_tx.lock().await;
+
+            let user_balance_data: Vec<UserBalance> = serde_json::from_str(&res.to_string())?;
+            data_tx.unbounded_send(
+                msg.websocket_data(WebsocketData::UserBalance(user_balance_data)),
+            )?;
+        }
+        _ => anyhow::bail!(ApiError::UnsupportedSubscription(msg.clone())),
+    }
+
+    Ok(())
+}
+
 /// Process the user data.
 ///
 /// # Errors
@@ -468,6 +509,7 @@ pub async fn process_user(
 
             data_tx.unbounded_send(msg.websocket_data(WebsocketData::Auth))?;
         }
+        "public/get-instruments" => public_get_instruments(&data_tx, &msg).await?,
         "private/create-withdrawal" => private_create_withdrawal(&data_tx, &msg).await?,
         "private/get-withdrawal-history" => private_get_withdrawal_history(&data_tx, &msg).await?,
         "private/get-account-summary" => private_get_account_summary(&data_tx, &msg).await?,
@@ -490,7 +532,8 @@ pub async fn process_user(
 
             process_subscribe_result(data_tx, res, &msg, &sub_result).await?;
         }
-        _ => {}
+        "ping" => {}
+        _ => anyhow::bail!(ApiError::UnsupportedMethod(msg.clone())),
     }
 
     Ok(())

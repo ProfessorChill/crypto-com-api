@@ -87,7 +87,7 @@ pub struct OrderItem {
 }
 
 /// Raw response values from the websocket connections.
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct RawRes {
     /// Channel the response is coming from.
     pub channel: String,

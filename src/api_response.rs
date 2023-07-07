@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::websocket::WebsocketData;
 
 /// The format of an API response from the crypto.com server.
-#[derive(Deserialize, Debug, Serialize)]
+#[derive(Deserialize, Debug, Serialize, Clone)]
 pub struct ApiResponse<T> {
     /// Original request identifier.
     pub id: i64,
