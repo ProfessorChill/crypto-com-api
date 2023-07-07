@@ -11,7 +11,7 @@ This API is very early in development, please refer to the `TODO` section below.
 | Feature                                      | Status             | Reason |
 | -------------------------------------------- | ------------------ | ------ |
 | `public/auth`                                | :white_check_mark: |        |
-| `public/get-instruments`                     | :x:                | Not developed yet, public routes are typically `REST` routes so I most likely missed this one. |
+| `public/get-instruments`                     | :white_check_mark: |        |
 | `private/set-cancel-on-disconnect`           | :x:                | To be developed. |
 | `private/get-cancel-on-disconnect`           | :x:                | To be developed. |
 | `private/get-withdrawal-history`             | :warning:          | Currently untested. |
