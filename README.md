@@ -77,7 +77,11 @@ created.
 ## Testing
 
 Tests will only run `websocket_basic` without the feature flag `test_authorized`
-as a `.env` file containing:
+and a `.env` file containing:
+
+I highly recommend running tests with the command
+`cargo test -- --test-threads 1` to prevent flooding crypto.com with too many
+requests as each test runs its own controller and creates a fresh connection.
 
 ```
 WEBSOCKET_USER_API_ROOT_V2=wss://stream.crypto.com/v2/user
@@ -89,7 +93,5 @@ SECRET_KEY=YOUR_SECRET_KEY
 ## TODO
 
 Add tests that should panic to data types.
-
-Finish creating the missing routes and adding tests where I reasonably can.
 
 Create the REST routes, add tests, and finalize that section.
