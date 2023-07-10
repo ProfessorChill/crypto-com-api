@@ -91,13 +91,13 @@ impl ApiRequestBuilder {
             payload_str += &id.to_string();
         }
 
-        if let Some(key) = &self.api_key {
+        if let Some(ref key) = self.api_key {
             payload_str += key;
         }
 
         payload_str += &param_str;
 
-        if let Some(nonce) = &self.nonce {
+        if let Some(ref nonce) = self.nonce {
             payload_str += &nonce.to_string();
         }
 
@@ -127,7 +127,7 @@ impl ApiRequestBuilder {
     /// Will return [`ApiError`] if `method` is empty.
     pub fn build(self) -> Result<ApiRequest, ApiError> {
         if self.method.is_empty() {
-            return Err(ApiError::InvalidApiRequest("method".to_string()));
+            return Err(ApiError::InvalidApiRequest("method".to_owned()));
         }
 
         Ok(ApiRequest {

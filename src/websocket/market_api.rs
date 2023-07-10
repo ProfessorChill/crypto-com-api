@@ -31,6 +31,7 @@ use crate::websocket::{respond_heartbeat, WebsocketData};
 /// Parameters of the subscription request.
 #[derive(Serialize, Debug)]
 pub struct SubscribeParams {
+    /// Channels to subscribe to.
     channels: Vec<String>,
 }
 
@@ -54,10 +55,10 @@ pub async fn initialize_market_actions(
     let (actions_tx, mut actions_rx) = futures_channel::mpsc::unbounded::<ActionStore>();
 
     let join_handle = tokio::spawn(async move {
-        let market_tx_arc = market_tx_arc.clone();
+        let market_tx_arc = Arc::clone(&market_tx_arc);
 
         while let Some(item) = actions_rx.next().await {
-            process_market_actions(item, market_tx_arc.clone()).await?;
+            process_market_actions(item, Arc::clone(&market_tx_arc)).await?;
         }
 
         Ok(())
@@ -77,15 +78,15 @@ pub async fn initialize_market_stream(
 ) -> Result<(JoinHandle<Result<()>>, MessageSender)> {
     let (market_tx, market_rx) = futures_channel::mpsc::unbounded();
     let market_tx_arc = Arc::new(Mutex::new(market_tx));
-    let Some(websocket_market_api) = &config.websocket_market_api else {
-        panic!("Websocket Market API not set.");
+    let Some(ref websocket_market_api) = config.websocket_market_api else {
+        anyhow::bail!("websocket_market_api");
     };
 
     let (market_stream, _) = connect_async(websocket_market_api).await?;
     log::info!("WebSocket Market API handshake has been successfully completed.");
 
     {
-        let data_tx_arc = data_tx_arc.clone();
+        let data_tx_arc = Arc::clone(&data_tx_arc);
         let data_tx = data_tx_arc.lock().await;
 
         data_tx.unbounded_send(
@@ -97,15 +98,19 @@ pub async fn initialize_market_stream(
     let rx_to_market = market_rx.map(Ok).forward(market_write);
 
     let join_handle: JoinHandle<Result<()>> = {
-        let market_tx_arc = market_tx_arc.clone();
+        let market_tx_arc = Arc::clone(&market_tx_arc);
 
         tokio::spawn(async move {
             let market_to_process = {
                 market_read
                     .map_err(convert_tungstenite_error)
                     .try_for_each(|message| async {
-                        match process_market(message, market_tx_arc.clone(), data_tx_arc.clone())
-                            .await
+                        match process_market(
+                            message,
+                            Arc::clone(&market_tx_arc),
+                            Arc::clone(&data_tx_arc),
+                        )
+                        .await
                         {
                             Ok(res) => Ok(res),
                             Err(err) => Err(processing_error(err)),
@@ -233,11 +238,11 @@ pub async fn process_market(
             let market_tx = market_tx.lock().await;
             let data_tx = data_tx.lock().await;
 
-            respond_heartbeat(&market_tx, msg.id as u64)?;
+            respond_heartbeat(&market_tx, msg.id.try_into()?)?;
             data_tx.unbounded_send(msg.websocket_data(WebsocketData::MarketHeartbeat))?;
         }
         "subscribe" => {
-            let Some(res) = &res else {
+            let Some(ref res) = res else {
                 log::warn!("Subscribe message had no result. {msg:#?}");
 
                 return Ok(());

@@ -86,6 +86,14 @@ pub struct OrderItem {
     pub trigger_price: Option<f64>,
 }
 
+/// Scope, used in `private/set-cancel-on-disconnect` and
+/// `private/get-cancel-on-disconnect`.
+#[derive(Deserialize, Debug)]
+pub struct Scope {
+    /// The scope parameter, `ACCOUNT` or `CONNECTION`.
+    pub scope: String,
+}
+
 /// Raw response values from the websocket connections.
 #[derive(Deserialize, Debug, Clone)]
 pub struct RawRes {

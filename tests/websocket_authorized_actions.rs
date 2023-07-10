@@ -4,7 +4,7 @@ use anyhow::Result as AnyhowResult;
 use crypto_com_api::websocket::actions::spot_trading_api::{
     GetAccountSummary, GetOpenOrders, GetOrderHistory, GetTrades, Paginated,
 };
-use crypto_com_api::websocket::actions::Auth;
+use crypto_com_api::websocket::actions::{Auth, GetCancelOnDisconnect, SetCancelOnDisconnect};
 use crypto_com_api::{
     controller::{Controller, ControllerBuilder, NoMarketWs, UserWs},
     prelude::ApiError,
@@ -58,11 +58,7 @@ async fn auth() -> AnyhowResult<()> {
         }))
         .await?;
 
-    let result = join_handle.await?;
-    match result {
-        Ok(()) => Ok(()),
-        Err(err) => panic!("{err}"),
-    }
+    join_handle.await?
 }
 
 #[tokio::test]
@@ -103,11 +99,7 @@ async fn get_account_summary() -> AnyhowResult<()> {
         }))
         .await?;
 
-    let result = join_handle.await?;
-    match result {
-        Ok(()) => Ok(()),
-        Err(err) => panic!("{err}"),
-    }
+    join_handle.await?
 }
 
 #[tokio::test]
@@ -152,11 +144,7 @@ async fn get_order_history() -> AnyhowResult<()> {
         })))
         .await?;
 
-    let result = join_handle.await?;
-    match result {
-        Ok(()) => Ok(()),
-        Err(err) => panic!("{err}"),
-    }
+    join_handle.await?
 }
 
 #[tokio::test]
@@ -199,11 +187,7 @@ async fn get_open_orders() -> AnyhowResult<()> {
         }))
         .await?;
 
-    let result = join_handle.await?;
-    match result {
-        Ok(()) => Ok(()),
-        Err(err) => panic!("{err}"),
-    }
+    join_handle.await?
 }
 
 #[tokio::test]
@@ -248,9 +232,92 @@ async fn get_trades() -> AnyhowResult<()> {
         })))
         .await?;
 
-    let result = join_handle.await?;
-    match result {
-        Ok(()) => Ok(()),
-        Err(err) => panic!("{err}"),
-    }
+    join_handle.await?
+}
+
+#[tokio::test]
+async fn set_cancel_on_disconnect() -> AnyhowResult<()> {
+    dotenv::dotenv()?;
+
+    let mut controller = get_controller().await?;
+
+    let join_handle = controller.listen(move |data| {
+        let Some(res) = &data.result else {
+            return Ok(false);
+        };
+        let code = data.code.unwrap_or(0);
+
+        match res {
+            WebsocketData::Auth => {
+                if code > 0 {
+                    anyhow::bail!(ApiError::AuthFail(code))
+                } else {
+                    Ok(false)
+                }
+            }
+            WebsocketData::SetCancelOnDisconnect(_scope) => Ok(true),
+            _ => Ok(false),
+        }
+    });
+
+    controller
+        .push_user_action(Box::new(Auth {
+            api_key: std::env::var("API_KEY")?,
+            secret_key: std::env::var("SECRET_KEY")?,
+        }))
+        .await?;
+
+    controller
+        .push_user_action(Box::new(SetCancelOnDisconnect {
+            scope: "CONNECTION".to_string(),
+        }))
+        .await?;
+
+    join_handle.await?
+}
+
+#[tokio::test]
+async fn get_cancel_on_disconnect() -> AnyhowResult<()> {
+    dotenv::dotenv()?;
+
+    let mut controller = get_controller().await?;
+
+    let join_handle = controller.listen(move |data| {
+        let Some(res) = &data.result else {
+            return Ok(false);
+        };
+        let code = data.code.unwrap_or(0);
+
+        match res {
+            WebsocketData::Auth => {
+                if code > 0 {
+                    anyhow::bail!(ApiError::AuthFail(code))
+                } else {
+                    Ok(false)
+                }
+            }
+            WebsocketData::GetCancelOnDisconnect(_scope) => Ok(true),
+            _ => Ok(false),
+        }
+    });
+
+    controller
+        .push_user_action(Box::new(Auth {
+            api_key: std::env::var("API_KEY")?,
+            secret_key: std::env::var("SECRET_KEY")?,
+        }))
+        .await?;
+
+    // Set the scope so we can later get it.
+    controller
+        .push_user_action(Box::new(SetCancelOnDisconnect {
+            scope: "CONNECTION".to_string(),
+        }))
+        .await?;
+
+    controller
+        .push_user_action(Box::new(GetCancelOnDisconnect))
+        .await?;
+
+    join_handle.await?
 }

@@ -13,6 +13,8 @@ use crate::websocket::data::{
     Trades, UserBalance, UserOrderRes, UserTradeRes, WithdrawalHistory,
 };
 
+use self::data::Scope;
+
 pub mod actions;
 pub mod data;
 pub mod market_api;
@@ -77,6 +79,10 @@ pub enum WebsocketData {
     MarketHeartbeat,
     /// Market Handshake.
     MarketHandshake,
+    /// Data from `private/set-cancel-on-disconnect`.
+    SetCancelOnDisconnect(Scope),
+    /// Data from `private/get-cancel-on-disconnect`.
+    GetCancelOnDisconnect(Scope),
 }
 
 /// Sends an API message with params to the websocket server. This is helpful for non-REST requests
@@ -86,10 +92,10 @@ pub enum WebsocketData {
 ///
 /// Will return `Err` if `ApiRequestBuilder` does not contain method or if
 /// `get_order_history_message` fails to serialize into a string.
-pub fn send_params_msg<T: Serialize>(
+pub fn send_params_msg<T: Serialize, S: Into<String>>(
     tx: &UnboundedSender<Message>,
     id: u64,
-    method: impl Into<String>,
+    method: S,
     params: T,
 ) -> Result<()> {
     let method = method.into();
@@ -105,8 +111,7 @@ pub fn send_params_msg<T: Serialize>(
 
     let msg = Message::Text(serde_json::to_string(&msg)?);
 
-    tx.unbounded_send(msg)
-        .expect("Failed to send message to {method}");
+    tx.unbounded_send(msg)?;
 
     Ok(())
 }
@@ -118,7 +123,7 @@ pub fn send_params_msg<T: Serialize>(
 ///
 /// Will return `Err` if `ApiRequestBuilder` does not contain method or if
 /// `get_order_history_message` fails to serialize into a string.
-pub fn send_msg(tx: &UnboundedSender<Message>, id: u64, method: impl Into<String>) -> Result<()> {
+pub fn send_msg<S: Into<String>>(tx: &UnboundedSender<Message>, id: u64, method: S) -> Result<()> {
     let method = method.into();
 
     log::info!("Sending message to {}", method);
@@ -131,8 +136,7 @@ pub fn send_msg(tx: &UnboundedSender<Message>, id: u64, method: impl Into<String
 
     let msg = Message::Text(serde_json::to_string(&msg)?);
 
-    tx.unbounded_send(msg)
-        .expect("Failed to send message to {method}");
+    tx.unbounded_send(msg)?;
 
     Ok(())
 }
@@ -153,8 +157,7 @@ pub fn respond_heartbeat(tx: &UnboundedSender<Message>, id: u64) -> Result<()> {
 
     let msg = Message::Text(serde_json::to_string(&heartbeat_msg)?);
 
-    tx.unbounded_send(msg)
-        .expect("Failed to send heartbeat message");
+    tx.unbounded_send(msg)?;
 
     Ok(())
 }
@@ -165,11 +168,11 @@ pub fn respond_heartbeat(tx: &UnboundedSender<Message>, id: u64) -> Result<()> {
 ///
 /// Will return `Err` if `ApiRequestBuilder` does not contain method or if `auth_msg` fails to
 /// serialize into a string.
-pub fn auth(
+pub fn auth<S: Into<String>>(
     tx: &UnboundedSender<Message>,
     id: u64,
-    api_key: impl Into<String>,
-    secret_key: impl Into<String>,
+    api_key: S,
+    secret_key: S,
 ) -> Result<()> {
     log::info!("Authorizing user");
 
@@ -183,7 +186,7 @@ pub fn auth(
 
     let msg = Message::Text(serde_json::to_string(&auth_msg)?);
 
-    tx.unbounded_send(msg).expect("Failed to send auth message");
+    tx.unbounded_send(msg)?;
 
     Ok(())
 }

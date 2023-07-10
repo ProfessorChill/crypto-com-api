@@ -2,6 +2,8 @@
 
 use serde::Deserialize;
 
+use crate::prelude::ApiError;
+
 /// The raw trade data response.
 #[derive(Deserialize, Debug)]
 pub struct RawTrade {
@@ -48,17 +50,19 @@ pub struct Trade {
     pub data_time: u64,
 }
 
-impl From<&RawTrade> for Trade {
-    fn from(value: &RawTrade) -> Self {
-        Self {
+impl TryFrom<&RawTrade> for Trade {
+    type Error = ApiError;
+
+    fn try_from(value: &RawTrade) -> Result<Self, Self::Error> {
+        Ok(Self {
             s: value.s.clone(),
-            p: value.p.parse::<f64>().expect("Failed to parse f64 of p"),
-            q: value.q.parse::<f64>().expect("Failed to parse f64 of q"),
+            p: value.p.parse::<f64>()?,
+            q: value.q.parse::<f64>()?,
             t: value.t,
-            d: value.d.parse::<u64>().expect("Failed to parse u64 of d"),
+            d: value.d.parse::<u64>()?,
             i: value.i.clone(),
             data_time: value.data_time,
-        }
+        })
     }
 }
 
@@ -69,18 +73,30 @@ pub struct TradesRes {
     pub data: Vec<Trade>,
 }
 
-impl From<&RawTradesRes> for TradesRes {
-    fn from(value: &RawTradesRes) -> Self {
-        Self {
-            data: value.data.iter().map(Trade::from).collect::<Vec<Trade>>(),
+impl TryFrom<&RawTradesRes> for TradesRes {
+    type Error = ApiError;
+
+    fn try_from(value: &RawTradesRes) -> Result<Self, Self::Error> {
+        let mut data = vec![];
+
+        for trade_data in &value.data {
+            data.push(Trade::try_from(trade_data)?);
         }
+
+        Ok(Self { data })
     }
 }
 
-impl From<RawTradesRes> for TradesRes {
-    fn from(value: RawTradesRes) -> Self {
-        Self {
-            data: value.data.iter().map(Trade::from).collect::<Vec<Trade>>(),
+impl TryFrom<RawTradesRes> for TradesRes {
+    type Error = ApiError;
+
+    fn try_from(value: RawTradesRes) -> Result<Self, Self::Error> {
+        let mut data = vec![];
+
+        for trade_data in &value.data {
+            data.push(Trade::try_from(trade_data)?);
         }
+
+        Ok(Self { data })
     }
 }

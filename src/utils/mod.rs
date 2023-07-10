@@ -29,16 +29,16 @@ pub fn params_to_str(obj: &serde_json::Value) -> String {
 
     let mut return_str = String::new();
 
-    match obj {
+    match *obj {
         Value::Null => return_str += "null",
         Value::Bool(val) => {
-            if *val {
+            if val {
                 return_str += "true";
             } else {
                 return_str += "false";
             }
         }
-        Value::Number(val) => {
+        Value::Number(ref val) => {
             if let Some(float_val) = val.as_f64() {
                 return_str += &float_val.to_string();
             } else if let Some(u64_val) = val.as_u64() {
@@ -49,13 +49,13 @@ pub fn params_to_str(obj: &serde_json::Value) -> String {
                 panic!("Number in params JSON is not a readable value");
             }
         }
-        Value::String(val) => return_str += val,
-        Value::Array(vals) => {
+        Value::String(ref val) => return_str += val,
+        Value::Array(ref vals) => {
             for val in vals.iter() {
                 return_str += &params_to_str(val);
             }
         }
-        Value::Object(val) => {
+        Value::Object(ref val) => {
             for (k, v) in val.iter() {
                 return_str += k;
                 return_str += &params_to_str(v);
@@ -115,23 +115,22 @@ pub async fn message_to_api_response(
     tx_arc: &Arc<Mutex<UnboundedSender<Message>>>,
     msg: &Message,
 ) -> AnyResult<ApiResponse<serde_json::Value>> {
-    Ok(match msg {
-        Message::Text(msg) => serde_json::from_str(msg)?,
-        Message::Binary(msg) => serde_json::from_str(str::from_utf8(msg)?)?,
-        Message::Ping(msg) => {
+    Ok(match *msg {
+        Message::Text(ref msg) => serde_json::from_str(msg)?,
+        Message::Binary(ref msg) => serde_json::from_str(str::from_utf8(msg)?)?,
+        Message::Ping(ref msg) => {
             let tx = tx_arc.lock().await;
 
             tx.unbounded_send(Message::Pong(msg.clone()))?;
             drop(tx);
 
             ApiResponse {
-                method: "ping".to_string(),
+                method: "ping".to_owned(),
                 ..Default::default()
             }
         }
-        msg => {
-            log::warn!("Unsupported message recieved.");
-            log::info!("{:?}", msg);
+        ref msg => {
+            log::warn!("Unsupported message recieved. {:#?}", &msg);
 
             ApiResponse::default()
         }

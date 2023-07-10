@@ -59,7 +59,9 @@ pub struct Controller<U, M> {
     pub data_tx: DataSender,
     /// Data reciever.
     pub data_rx: DataReciever,
+    /// Marker for user websocket.
     _mark_user_ws: PhantomData<U>,
+    /// Marker for market websocket.
     _mark_market_ws: PhantomData<M>,
 }
 
@@ -84,8 +86,11 @@ pub struct ControllerBuilder<A, U, M> {
     pub data_tx: DataSender,
     /// Data reciever.
     pub data_rx: DataReciever,
+    /// Marker for authorization.
     _mark_auth: PhantomData<A>,
+    /// Marker for user websocket.
     _mark_user_ws: PhantomData<U>,
+    /// Market for market websocket.
     _mark_market_ws: PhantomData<M>,
 }
 
@@ -97,6 +102,7 @@ impl Default for ControllerBuilder<NoAuth, NoUserWs, NoMarketWs> {
 
 impl ControllerBuilder<NoAuth, NoUserWs, NoMarketWs> {
     /// The base controller builder with no actions.
+    #[must_use]
     pub fn new() -> Self {
         let (data_tx, data_rx) = futures_channel::mpsc::unbounded::<ApiResponse<WebsocketData>>();
 
@@ -118,7 +124,7 @@ impl ControllerBuilder<NoAuth, NoUserWs, NoMarketWs> {
 }
 
 impl<A, U, M> ControllerBuilder<A, U, M> {
-    /// With authorization (api_key, secret_key), required for user websocket.
+    /// With authorization (`api_key`, `secret_key`), required for user websocket.
     pub fn with_auth(
         mut self,
         api_key: impl Into<String>,
@@ -144,15 +150,19 @@ impl<A, U, M> ControllerBuilder<A, U, M> {
     }
 
     /// With the Market Websocket.
+    ///
+    /// # Errors
+    ///
+    /// Will return `Err` if `initialize_market_stream` fails.
     pub async fn with_market_websocket(
         mut self,
         url: url::Url,
     ) -> Result<ControllerBuilder<A, U, MarketWs>> {
         self.config.websocket_market_api = Some(url);
         let (market_stream_handle, market_tx_arc) =
-            market_api::initialize_market_stream(&self.config, self.data_tx.clone()).await?;
+            market_api::initialize_market_stream(&self.config, Arc::clone(&self.data_tx)).await?;
         let (market_join_handle, market_actions_tx) =
-            market_api::initialize_market_actions(market_tx_arc.clone()).await;
+            market_api::initialize_market_actions(Arc::clone(&market_tx_arc)).await;
 
         Ok(ControllerBuilder {
             config: self.config,
@@ -172,16 +182,16 @@ impl<A, U, M> ControllerBuilder<A, U, M> {
 }
 
 impl<Auth, U, M> ControllerBuilder<Auth, U, M> {
-    /// With the User Websocket, requires api_key and secret_key [`ControllerBuilder::with_auth`].
+    /// With the User Websocket, requires `api_key` and `secret_key` [`ControllerBuilder::with_auth`].
     pub async fn with_user_websocket(
         mut self,
         url: url::Url,
     ) -> Result<ControllerBuilder<Auth, UserWs, M>> {
         self.config.websocket_user_api = Some(url);
         let (user_stream_handle, user_tx_arc) =
-            user_api::initialize_user_stream(&self.config, self.data_tx.clone()).await?;
+            user_api::initialize_user_stream(&self.config, Arc::clone(&self.data_tx)).await?;
         let (user_actions_handle, user_actions_tx) =
-            user_api::initialize_user_actions(user_tx_arc.clone()).await;
+            user_api::initialize_user_actions(Arc::clone(&user_tx_arc)).await;
 
         Ok(ControllerBuilder {
             config: self.config,
@@ -202,6 +212,7 @@ impl<Auth, U, M> ControllerBuilder<Auth, U, M> {
 
 impl<A, U, M> ControllerBuilder<A, U, M> {
     /// Build a controller with auth and a user websocket but no market websocket.
+    #[must_use]
     pub fn build(self) -> Controller<U, M> {
         Controller {
             config: self.config,
@@ -222,11 +233,13 @@ impl<A, U, M> ControllerBuilder<A, U, M> {
 
 impl<UserWs, W> Controller<UserWs, W> {
     /// Push an action to the user websocket and increment the current ID to prevent duplicates.
+    ///
+    /// # Errors
+    ///
+    /// Will return `Err` if `unbounded_send` fails.
     pub async fn push_user_action(&mut self, action: Box<dyn Action>) -> Result<()> {
-        if let Some(user_actions_tx) = &self.user_actions_tx {
-            let user_actions = user_actions_tx.lock().await;
-
-            user_actions.unbounded_send(ActionStore {
+        if let Some(ref user_actions_tx) = self.user_actions_tx {
+            user_actions_tx.lock().await.unbounded_send(ActionStore {
                 id: self.current_id,
                 action,
             })?;
@@ -239,12 +252,14 @@ impl<UserWs, W> Controller<UserWs, W> {
 }
 
 impl<U, MarketWs> Controller<U, MarketWs> {
-    /// Push an action to the market websocket and increment the current ID to prevent duplicates;
+    /// Push an action to the market websocket and increment the current ID to prevent duplicates.
+    ///
+    /// # Errors
+    ///
+    /// Will return `Err` if `unbounded_send` fails.
     pub async fn push_market_action(&mut self, action: Box<dyn Action>) -> Result<()> {
-        if let Some(market_actions_tx) = &self.market_actions_tx {
-            let market_actions = market_actions_tx.lock().await;
-
-            market_actions.unbounded_send(ActionStore {
+        if let Some(ref market_actions_tx) = self.market_actions_tx {
+            market_actions_tx.lock().await.unbounded_send(ActionStore {
                 id: self.current_id,
                 action,
             })?;
@@ -258,8 +273,9 @@ impl<U, MarketWs> Controller<U, MarketWs> {
 
 impl<U, W> Controller<U, W> {
     /// Get a clone of the data reader.
+    #[must_use]
     pub fn get_data_reader(&self) -> DataReciever {
-        self.data_rx.clone()
+        Arc::clone(&self.data_rx)
     }
 
     /// Create a data listener.

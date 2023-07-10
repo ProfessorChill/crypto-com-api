@@ -3,6 +3,7 @@
 use anyhow::Result;
 
 use crate::api_response::ApiResponse;
+use crate::prelude::ApiError;
 use crate::rest::data::{
     book::{BookRes, RawBookRes},
     candlestick::{CandlestickRes, RawCandlestickRes},
@@ -20,12 +21,12 @@ use crate::utils::config::Config;
 pub async fn get_instruments(config: &Config) -> Result<ApiResponse<InstrumentsRes>> {
     let client = reqwest::Client::new();
 
-    let Some(rest_url) = &config.rest_url else {
-        panic!("Rest URL is not set in config.");
+    let Some(ref rest_url) = config.rest_url else {
+        anyhow::bail!(ApiError::ConfigMissing("rest_url".to_owned()));
     };
 
     let res = client
-        .get(format!("{}public/get-instruments", rest_url,))
+        .get(format!("{rest_url}public/get-instruments"))
         .send()
         .await?
         .json::<ApiResponse<RawInstrumentsRes>>()
@@ -64,12 +65,12 @@ pub async fn get_book(
         ("depth", &depth.to_string()),
     ];
 
-    let Some(rest_url) = &config.rest_url else {
-        panic!("Rest URL is not set in config.");
+    let Some(ref rest_url) = config.rest_url else {
+        anyhow::bail!(ApiError::ConfigMissing("rest_url".to_owned()));
     };
 
     let res = client
-        .get(format!("{}public/get-book", rest_url))
+        .get(format!("{rest_url}public/get-book"))
         .form(&params)
         .send()
         .await?
@@ -79,7 +80,11 @@ pub async fn get_book(
     Ok(ApiResponse {
         id: res.id,
         method: res.method,
-        result: res.result.as_ref().map(BookRes::from),
+        result: if let Some(ref res) = res.result {
+            Some(BookRes::try_from(res)?)
+        } else {
+            None
+        },
         code: res.code,
         message: res.message,
         original: res.original,
@@ -105,12 +110,12 @@ pub async fn get_candlestick(
         ("timeframe", &timeframe),
     ];
 
-    let Some(rest_url) = &config.rest_url else {
-        panic!("Rest URL is not set in config.");
+    let Some(ref rest_url) = config.rest_url else {
+        anyhow::bail!(ApiError::ConfigMissing("rest_url".to_owned()));
     };
 
     let res = client
-        .get(format!("{}public/get-candlestick", rest_url))
+        .get(format!("{rest_url}public/get-candlestick"))
         .form(&params)
         .send()
         .await?
@@ -120,7 +125,11 @@ pub async fn get_candlestick(
     Ok(ApiResponse {
         id: res.id,
         method: res.method,
-        result: res.result.as_ref().map(CandlestickRes::from),
+        result: if let Some(ref res) = res.result {
+            Some(CandlestickRes::try_from(res)?)
+        } else {
+            None
+        },
         code: res.code,
         message: res.message,
         original: res.original,
@@ -140,11 +149,11 @@ pub async fn get_ticker(
 ) -> Result<ApiResponse<TickerRes>> {
     let client = reqwest::Client::new();
 
-    let Some(rest_url) = &config.rest_url else {
-        panic!("Rest URL is not set in config.");
+    let Some(ref rest_url) = config.rest_url else {
+        anyhow::bail!(ApiError::ConfigMissing("rest_url".to_owned()));
     };
 
-    let mut res = client.get(format!("{}public/get-ticker", rest_url));
+    let mut res = client.get(format!("{rest_url}public/get-ticker"));
 
     if let Some(instrument_name) = instrument_name {
         let params = [("instrument_name", &instrument_name)];
@@ -161,7 +170,11 @@ pub async fn get_ticker(
     Ok(ApiResponse {
         id: res.id,
         method: res.method,
-        result: res.result.as_ref().map(TickerRes::from),
+        result: if let Some(ref res) = res.result {
+            Some(TickerRes::try_from(res)?)
+        } else {
+            None
+        },
         code: res.code,
         message: res.message,
         original: res.original,
@@ -181,11 +194,11 @@ pub async fn get_trades(
 ) -> Result<ApiResponse<TradesRes>> {
     let client = reqwest::Client::new();
 
-    let Some(rest_url) = &config.rest_url else {
-        panic!("Rest URL is not set in config.");
+    let Some(ref rest_url) = config.rest_url else {
+        anyhow::bail!(ApiError::ConfigMissing("rest_url".to_owned()));
     };
 
-    let mut res = client.get(format!("{}public/get-trades", rest_url));
+    let mut res = client.get(format!("{rest_url}public/get-trades"));
 
     if let Some(instrument_name) = instrument_name {
         let params = [("instrument_name", &instrument_name)];
@@ -202,7 +215,11 @@ pub async fn get_trades(
     Ok(ApiResponse {
         id: res.id,
         method: res.method,
-        result: res.result.as_ref().map(TradesRes::from),
+        result: if let Some(ref res) = res.result {
+            Some(TradesRes::try_from(res)?)
+        } else {
+            None
+        },
         code: res.code,
         message: res.message,
         original: res.original,

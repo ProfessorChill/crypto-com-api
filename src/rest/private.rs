@@ -3,6 +3,7 @@
 use anyhow::Result;
 use serde::Serialize;
 
+use crate::prelude::ApiError;
 use crate::rest::data::CreateWithdrawalRes;
 use crate::{api_request::ApiRequestBuilder, api_response::ApiResponse, utils::config::Config};
 
@@ -33,16 +34,16 @@ pub async fn create_withdrawal(
 ) -> Result<ApiResponse<CreateWithdrawalRes>> {
     let client = reqwest::Client::new();
 
-    let Some(rest_url) = &config.rest_url else {
-        panic!("Rest URL is not set in config.");
+    let Some(ref rest_url) = config.rest_url else {
+        anyhow::bail!(ApiError::ConfigMissing("rest_url".to_owned()));
     };
 
-    let Some(api_key) = &config.api_key else {
-        panic!("API Key is not set in config.");
+    let Some(ref api_key) = config.api_key else {
+        anyhow::bail!(ApiError::ConfigMissing("api_key".to_owned()));
     };
 
-    let Some(secret) = &config.secret_key else {
-        panic!("Secret is not set in config.");
+    let Some(ref secret) = config.secret_key else {
+        anyhow::bail!(ApiError::ConfigMissing("secret_key".to_owned()));
     };
 
     let req = ApiRequestBuilder::default()

@@ -24,6 +24,8 @@ use crate::websocket::data::{
 };
 use crate::websocket::{respond_heartbeat, WebsocketData};
 
+use super::data::Scope;
+
 /// Handle the actions that are to be pushed to the server from [`crate::controller::Controller::push_user_action`]
 ///
 /// # Errors
@@ -44,10 +46,10 @@ pub async fn initialize_user_actions(
     let (actions_tx, mut actions_rx) = futures_channel::mpsc::unbounded::<ActionStore>();
 
     let join_handle = tokio::spawn(async move {
-        let user_tx_arc = user_tx_arc.clone();
+        let user_tx_arc = Arc::clone(&user_tx_arc);
 
         while let Some(item) = actions_rx.next().await {
-            process_user_actions(item, user_tx_arc.clone()).await?;
+            process_user_actions(item, Arc::clone(&user_tx_arc)).await?;
         }
 
         Ok(())
@@ -67,15 +69,15 @@ pub async fn initialize_user_stream(
 ) -> Result<(JoinHandle<Result<()>>, MessageSender)> {
     let (user_tx, user_rx) = futures_channel::mpsc::unbounded();
     let user_tx_arc = Arc::new(Mutex::new(user_tx));
-    let Some(websocket_user_api) = &config.websocket_user_api else {
-        panic!("Websocket User API not in config.");
+    let Some(ref websocket_user_api) = config.websocket_user_api else {
+        anyhow::bail!(ApiError::ConfigMissing("websocket_user_api".to_owned()));
     };
 
     let (user_stream, _) = connect_async(websocket_user_api).await?;
     log::info!("WebSocket User API handshake has been successfully completed.");
 
     {
-        let data_tx_arc = data_tx_arc.clone();
+        let data_tx_arc = Arc::clone(&data_tx_arc);
         let data_tx = data_tx_arc.lock().await;
 
         data_tx.unbounded_send(
@@ -87,14 +89,19 @@ pub async fn initialize_user_stream(
     let rx_to_user = user_rx.map(Ok).forward(user_write);
 
     let join_handle: JoinHandle<Result<()>> = {
-        let user_tx_arc = user_tx_arc.clone();
+        let user_tx_arc = Arc::clone(&user_tx_arc);
 
         tokio::spawn(async move {
             let user_to_process = {
                 user_read
                     .map_err(convert_tungstenite_error)
                     .try_for_each(|message| async {
-                        match process_user(message, user_tx_arc.clone(), data_tx_arc.clone()).await
+                        match process_user(
+                            message,
+                            Arc::clone(&user_tx_arc),
+                            Arc::clone(&data_tx_arc),
+                        )
+                        .await
                         {
                             Ok(res) => Ok(res),
                             Err(err) => Err(processing_error(err)),
@@ -135,7 +142,7 @@ async fn public_get_instruments(
     arc_tx: &DataSender,
     msg: &ApiResponse<serde_json::Value>,
 ) -> Result<()> {
-    let Some(res) = &msg.result else {
+    let Some(ref res) = msg.result else {
         log::warn!("Message had no result. {msg:#?}");
 
         return Ok(());
@@ -161,7 +168,7 @@ async fn private_create_withdrawal(
     arc_tx: &DataSender,
     msg: &ApiResponse<serde_json::Value>,
 ) -> Result<()> {
-    let Some(res) = &msg.result else {
+    let Some(ref res) = msg.result else {
         log::warn!("Message had no result. {msg:#?}");
 
         return Ok(());
@@ -187,7 +194,7 @@ async fn private_get_withdrawal_history(
     arc_tx: &DataSender,
     msg: &ApiResponse<serde_json::Value>,
 ) -> Result<()> {
-    let Some(res) = &msg.result else {
+    let Some(ref res) = msg.result else {
         log::warn!("Message had no result. {msg:#?}");
 
         return Ok(());
@@ -215,7 +222,7 @@ async fn private_get_account_summary(
     arc_tx: &DataSender,
     msg: &ApiResponse<serde_json::Value>,
 ) -> Result<()> {
-    let Some(res) = &msg.result else {
+    let Some(ref res) = msg.result else {
         log::warn!("Message had no result. {msg:#?}");
 
         return Ok(());
@@ -241,7 +248,7 @@ async fn private_create_order(
     arc_tx: &DataSender,
     msg: &ApiResponse<serde_json::Value>,
 ) -> Result<()> {
-    let Some(res) = &msg.result else {
+    let Some(ref res) = msg.result else {
         log::warn!("Message had no result. {msg:#?}");
 
         return Ok(());
@@ -267,7 +274,7 @@ async fn private_create_order_list(
     arc_tx: &DataSender,
     msg: &ApiResponse<serde_json::Value>,
 ) -> Result<()> {
-    let Some(res) = &msg.result else {
+    let Some(ref res) = msg.result else {
         log::warn!("Message had no result. {msg:#?}");
 
         return Ok(());
@@ -293,7 +300,7 @@ async fn private_cancel_order_list(
     arc_tx: &DataSender,
     msg: &ApiResponse<serde_json::Value>,
 ) -> Result<()> {
-    let Some(res) = &msg.result else {
+    let Some(ref res) = msg.result else {
         log::warn!("Message had no result. {msg:#?}");
 
         return Ok(());
@@ -338,7 +345,7 @@ async fn private_get_order_history(
     arc_tx: &DataSender,
     msg: &ApiResponse<serde_json::Value>,
 ) -> Result<()> {
-    let Some(res) = &msg.result else {
+    let Some(ref res) = msg.result else {
         log::warn!("Message had no result. {msg:#?}");
 
         return Ok(());
@@ -364,7 +371,7 @@ async fn private_get_open_orders(
     arc_tx: &DataSender,
     msg: &ApiResponse<serde_json::Value>,
 ) -> Result<()> {
-    let Some(res) = &msg.result else {
+    let Some(ref res) = msg.result else {
         log::warn!("Message had no result. {msg:#?}");
 
         return Ok(());
@@ -390,7 +397,7 @@ async fn private_get_order_detail(
     arc_tx: &DataSender,
     msg: &ApiResponse<serde_json::Value>,
 ) -> Result<()> {
-    let Some(res) = &msg.result else {
+    let Some(ref res) = msg.result else {
         log::warn!("Message had no result. {msg:#?}");
 
         return Ok(());
@@ -418,7 +425,7 @@ async fn private_get_trades(
     arc_tx: &DataSender,
     msg: &ApiResponse<serde_json::Value>,
 ) -> Result<()> {
-    let Some(res) = &msg.result else {
+    let Some(ref res) = msg.result else {
         log::warn!("Message had no result. {msg:#?}");
 
         return Ok(());
@@ -428,6 +435,62 @@ async fn private_get_trades(
 
     let trades_data: Trades = serde_json::from_str(&res.to_string())?;
     tx.unbounded_send(msg.websocket_data(WebsocketData::GetTrades(trades_data)))?;
+    drop(tx);
+
+    Ok(())
+}
+
+/// Handle the `private/set-cancel-on-disconnect` result.
+///
+/// # Errors
+///
+/// Will return [`serde_json::Error`] if [`serde_json::from_str`] cannot process the result string.
+///
+/// Will return [`futures_channel::mpsc::TrySendError`] if `unbounded_send` fails anywhere.
+async fn private_set_cancel_on_disconnect(
+    arc_tx: &DataSender,
+    msg: &ApiResponse<serde_json::Value>,
+) -> Result<()> {
+    let Some(ref res) = msg.result else {
+        log::warn!("Message had no result. {msg:#?}");
+
+        return Ok(());
+    };
+
+    let tx = arc_tx.lock().await;
+
+    let cancel_on_disconnect_data: Scope = serde_json::from_str(&res.to_string())?;
+    tx.unbounded_send(msg.websocket_data(WebsocketData::SetCancelOnDisconnect(
+        cancel_on_disconnect_data,
+    )))?;
+    drop(tx);
+
+    Ok(())
+}
+
+/// Handle the `private/get-cancel-on-disconnect` result.
+///
+/// # Errors
+///
+/// Will return [`serde_json::Error`] if [`serde_json::from_str`] cannot process the result string.
+///
+/// Will return [`futures_channel::mpsc::TrySendError`] if `unbounded_send` fails anywhere.
+async fn private_get_cancel_on_disconnect(
+    arc_tx: &DataSender,
+    msg: &ApiResponse<serde_json::Value>,
+) -> Result<()> {
+    let Some(ref res) = msg.result else {
+        log::warn!("Message had no result. {msg:#?}");
+
+        return Ok(());
+    };
+
+    let tx = arc_tx.lock().await;
+
+    let cancel_on_disconnect_data: Scope = serde_json::from_str(&res.to_string())?;
+    tx.unbounded_send(msg.websocket_data(WebsocketData::GetCancelOnDisconnect(
+        cancel_on_disconnect_data,
+    )))?;
     drop(tx);
 
     Ok(())
@@ -501,7 +564,7 @@ pub async fn process_user(
             let user_tx = user_tx.lock().await;
             let data_tx = data_tx.lock().await;
 
-            respond_heartbeat(&user_tx, msg.id as u64)?;
+            respond_heartbeat(&user_tx, msg.id.try_into()?)?;
             data_tx.unbounded_send(msg.websocket_data(WebsocketData::UserHeartbeat))?;
         }
         "public/auth" => {
@@ -521,8 +584,14 @@ pub async fn process_user(
         "private/get-open-orders" => private_get_open_orders(&data_tx, &msg).await?,
         "private/get-order-detail" => private_get_order_detail(&data_tx, &msg).await?,
         "private/get-trades" => private_get_trades(&data_tx, &msg).await?,
+        "private/set-cancel-on-disconnect" => {
+            private_set_cancel_on_disconnect(&data_tx, &msg).await?;
+        }
+        "private/get-cancel-on-disconnect" => {
+            private_get_cancel_on_disconnect(&data_tx, &msg).await?;
+        }
         "subscribe" => {
-            let Some(res) = &res else {
+            let Some(ref res) = res else {
                 log::warn!("Subscribe message had no result. {msg:#?}");
 
                 return Ok(());

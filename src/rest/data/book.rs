@@ -2,6 +2,8 @@
 
 use serde::Deserialize;
 
+use crate::prelude::ApiError;
+
 /// The raw book data response.
 ///
 /// Level: (
@@ -47,41 +49,35 @@ pub struct Book {
     pub t: Option<u64>,
 }
 
-impl From<&RawBook> for Book {
-    fn from(value: &RawBook) -> Self {
-        Self {
-            bids: value
-                .bids
-                .iter()
-                .map(|bid| {
-                    (
-                        bid.0.parse::<f64>().expect("Failed to parse f64 of price"),
-                        bid.1
-                            .parse::<f64>()
-                            .expect("Failed to parse f64 of quantity"),
-                        bid.2
-                            .parse::<u64>()
-                            .expect("Failed to parse u64 of number of orderes"),
-                    )
-                })
-                .collect::<Vec<(f64, f64, u64)>>(),
-            asks: value
-                .asks
-                .iter()
-                .map(|ask| {
-                    (
-                        ask.0.parse::<f64>().expect("Failed to parse f64 of price"),
-                        ask.1
-                            .parse::<f64>()
-                            .expect("Failed to parse f64 of quantity"),
-                        ask.2
-                            .parse::<u64>()
-                            .expect("Failed to parse u64 of number of orderes"),
-                    )
-                })
-                .collect::<Vec<(f64, f64, u64)>>(),
-            t: value.t,
+impl TryFrom<&RawBook> for Book {
+    type Error = ApiError;
+
+    fn try_from(value: &RawBook) -> Result<Self, Self::Error> {
+        let mut bids = vec![];
+
+        for bid in &value.bids {
+            bids.push((
+                bid.0.parse::<f64>()?,
+                bid.1.parse::<f64>()?,
+                bid.2.parse::<u64>()?,
+            ));
         }
+
+        let mut asks = vec![];
+
+        for ask in &value.asks {
+            asks.push((
+                ask.0.parse::<f64>()?,
+                ask.1.parse::<f64>()?,
+                ask.2.parse::<u64>()?,
+            ));
+        }
+
+        Ok(Self {
+            bids,
+            asks,
+            t: value.t,
+        })
     }
 }
 
@@ -96,12 +92,20 @@ pub struct BookRes {
     pub data: Vec<Book>,
 }
 
-impl From<&RawBookRes> for BookRes {
-    fn from(value: &RawBookRes) -> Self {
-        Self {
+impl TryFrom<&RawBookRes> for BookRes {
+    type Error = ApiError;
+
+    fn try_from(value: &RawBookRes) -> Result<Self, Self::Error> {
+        let mut books = vec![];
+
+        for book in &value.data {
+            books.push(Book::try_from(book)?);
+        }
+
+        Ok(Self {
             instrument_name: value.instrument_name.clone(),
             depth: value.depth,
-            data: value.data.iter().map(Book::from).collect::<Vec<Book>>(),
-        }
+            data: books,
+        })
     }
 }

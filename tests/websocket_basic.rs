@@ -112,7 +112,7 @@ async fn trade_subscription() -> Result<()> {
 
     controller
         .push_market_action(Box::new(Subscribe {
-            channels: vec!["trade.BTCUSD-PERP".to_string()],
+            channels: vec!["trade.BTC_USDT".to_string()],
         }))
         .await?;
 
@@ -146,8 +146,7 @@ async fn candlestick_subscription() -> Result<()> {
 /*
 #[tokio::test]
 async fn otc_book_subscription() -> Result<()> {
-    let _ = env_logger::init();
-    let mut controller = get_controller_sandbox_user().await?;
+    let mut controller = get_controller_sandbox().await?;
 
     let join_handle = controller.listen(move |data| {
         let Some(res) = &data.result else {
@@ -161,7 +160,7 @@ async fn otc_book_subscription() -> Result<()> {
     });
 
     controller
-        .push_user_action(Box::new(Subscribe {
+        .push_market_action(Box::new(Subscribe {
             channels: vec!["otc_book.BTC_USDT".to_string()],
         }))
         .await?;

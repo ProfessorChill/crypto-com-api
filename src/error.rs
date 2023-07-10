@@ -6,8 +6,9 @@ use anyhow::Error as AnyError;
 
 use crate::{api_response::ApiResponse, websocket::WebsocketData};
 
-/// Handles conversion of an anyhow error into a ApiError when `process_user` or `process_market`
+/// Handles conversion of an anyhow error into a `ApiError` when `process_user` or `process_market`
 /// encounters an error.
+#[must_use]
 pub fn processing_error(err: AnyError) -> ApiError {
     if let Some(_err) = err.downcast_ref::<serde_json::Error>() {
         return ApiError::SerdeJSON;
@@ -66,22 +67,25 @@ pub enum ApiError {
     /// A method that we are not handling.
     #[error("unsupported method `{0:#?}`")]
     UnsupportedMethod(ApiResponse<serde_json::Value>),
+    /// Missing a method in the config file.
+    #[error("config missing `{0}`")]
+    ConfigMissing(String),
 }
 
 impl From<ParseFloatError> for ApiError {
     fn from(_value: ParseFloatError) -> Self {
-        ApiError::ParseNumber
+        Self::ParseNumber
     }
 }
 
 impl From<ParseIntError> for ApiError {
     fn from(_value: ParseIntError) -> Self {
-        ApiError::ParseNumber
+        Self::ParseNumber
     }
 }
 
 impl From<serde_json::Error> for ApiError {
     fn from(_value: serde_json::Error) -> Self {
-        ApiError::SerdeJSON
+        Self::SerdeJSON
     }
 }

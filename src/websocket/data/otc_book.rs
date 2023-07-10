@@ -109,7 +109,7 @@ impl TryFrom<&RawOtcBookRes> for OtcBookRes {
             subscription: value.subscription.clone(),
             instrument_name: value.instrument_name.clone(),
             t: value.t,
-            data: if let Some(data) = &value.data {
+            data: if let Some(ref data) = value.data {
                 let mut books = vec![];
 
                 for book in data {
@@ -133,7 +133,7 @@ impl TryFrom<RawOtcBookRes> for OtcBookRes {
             subscription: value.subscription,
             instrument_name: value.instrument_name,
             t: value.t,
-            data: if let Some(data) = &value.data {
+            data: if let Some(ref data) = value.data {
                 let mut books = vec![];
 
                 for book in data {

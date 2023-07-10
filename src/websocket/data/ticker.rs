@@ -8,7 +8,7 @@ use crate::prelude::ApiError;
 #[derive(Deserialize, Debug)]
 pub struct RawTicker {
     /// Price of the 24h highest trade.
-    pub h: String,
+    pub h: Option<String>,
     /// Price of the 24h lowest trade, null if there weren't any trades.
     pub l: Option<String>,
     /// The price of the latest trade, null if there weren't any trades.
@@ -52,7 +52,7 @@ pub struct RawTickerRes {
 #[derive(Debug)]
 pub struct Ticker {
     /// Price of the 24h highest trade.
-    pub h: f64,
+    pub h: Option<f64>,
     /// Price of the 24h lowest trade, null if there weren't any trades.
     pub l: Option<f64>,
     /// The price of the latest trade, null if there weren't any trades.
@@ -84,13 +84,17 @@ impl TryFrom<&RawTicker> for Ticker {
 
     fn try_from(value: &RawTicker) -> Result<Self, Self::Error> {
         Ok(Self {
-            h: value.h.parse::<f64>()?,
-            l: if let Some(l) = &value.l {
+            h: if let Some(ref h) = value.h {
+                Some(h.parse::<f64>()?)
+            } else {
+                None
+            },
+            l: if let Some(ref l) = value.l {
                 Some(l.parse::<f64>()?)
             } else {
                 None
             },
-            a: if let Some(a) = &value.a {
+            a: if let Some(ref a) = value.a {
                 Some(a.parse::<f64>()?)
             } else {
                 None
@@ -99,27 +103,27 @@ impl TryFrom<&RawTicker> for Ticker {
             v: value.v.parse::<f64>()?,
             vv: value.vv.parse::<f64>()?,
             oi: value.oi.parse::<f64>()?,
-            c: if let Some(c) = &value.c {
+            c: if let Some(ref c) = value.c {
                 Some(c.parse::<f64>()?)
             } else {
                 None
             },
-            b: if let Some(b) = &value.b {
+            b: if let Some(ref b) = value.b {
                 Some(b.parse::<f64>()?)
             } else {
                 None
             },
-            bs: if let Some(bs) = &value.bs {
+            bs: if let Some(ref bs) = value.bs {
                 Some(bs.parse::<f64>()?)
             } else {
                 None
             },
-            k: if let Some(k) = &value.k {
+            k: if let Some(ref k) = value.k {
                 Some(k.parse::<f64>()?)
             } else {
                 None
             },
-            ks: if let Some(ks) = &value.ks {
+            ks: if let Some(ref ks) = value.ks {
                 Some(ks.parse::<f64>()?)
             } else {
                 None

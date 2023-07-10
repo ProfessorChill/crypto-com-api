@@ -2,11 +2,13 @@
 
 use serde::Deserialize;
 
+use crate::prelude::ApiError;
+
 /// The raw ticker data response.
 #[derive(Deserialize, Debug)]
 pub struct RawTicker {
     /// Price of the 24h highest trade.
-    pub h: String,
+    pub h: Option<String>,
     /// Price of the 24h lowest trade, null if there weren't any trades.
     pub l: Option<String>,
     /// The price of the latest trade, null if there weren't any trades.
@@ -40,7 +42,7 @@ pub struct RawTickerRes {
 #[derive(Debug, Default)]
 pub struct Ticker {
     /// Price of the 24h highest trade.
-    pub h: f64,
+    pub h: Option<f64>,
     /// Price of the 24h lowest trade, null if there weren't any trades.
     pub l: Option<f64>,
     /// The price of the latest trade, null if there weren't any trades.
@@ -63,42 +65,47 @@ pub struct Ticker {
     pub t: u64,
 }
 
-impl From<&RawTicker> for Ticker {
-    fn from(value: &RawTicker) -> Self {
-        Self {
-            h: value.h.parse::<f64>().expect("Failed to parse f64 from h"),
-            l: value
-                .l
-                .as_ref()
-                .map(|l| l.parse::<f64>().expect("Failed to parse f64 from l")),
-            a: value
-                .a
-                .as_ref()
-                .map(|a| a.parse::<f64>().expect("Failed to parse f64 from a")),
+impl TryFrom<&RawTicker> for Ticker {
+    type Error = ApiError;
+
+    fn try_from(value: &RawTicker) -> Result<Self, Self::Error> {
+        Ok(Self {
+            h: if let Some(ref h) = value.h {
+                Some(h.parse::<f64>()?)
+            } else {
+                None
+            },
+            l: if let Some(ref l) = value.l {
+                Some(l.parse::<f64>()?)
+            } else {
+                None
+            },
+            a: if let Some(ref a) = value.a {
+                Some(a.parse::<f64>()?)
+            } else {
+                None
+            },
             i: value.i.clone(),
-            v: value.v.parse::<f64>().expect("Failed to parse f64 from v"),
-            vv: value
-                .vv
-                .parse::<f64>()
-                .expect("Failed to parse f64 from vv"),
-            oi: value
-                .oi
-                .parse::<f64>()
-                .expect("Failed to parse f64 from oi"),
-            c: value
-                .c
-                .as_ref()
-                .map(|c| c.parse::<f64>().expect("Failed to parse f64 from c")),
-            b: value
-                .b
-                .as_ref()
-                .map(|b| b.parse::<f64>().expect("Failed to parse f64 from b")),
-            k: value
-                .k
-                .as_ref()
-                .map(|k| k.parse::<f64>().expect("Failed to parse f64 from k")),
+            v: value.v.parse::<f64>()?,
+            vv: value.vv.parse::<f64>()?,
+            oi: value.oi.parse::<f64>()?,
+            c: if let Some(ref c) = value.c {
+                Some(c.parse::<f64>()?)
+            } else {
+                None
+            },
+            b: if let Some(ref b) = value.b {
+                Some(b.parse::<f64>()?)
+            } else {
+                None
+            },
+            k: if let Some(ref k) = value.k {
+                Some(k.parse::<f64>()?)
+            } else {
+                None
+            },
             t: value.t,
-        }
+        })
     }
 }
 
@@ -109,18 +116,30 @@ pub struct TickerRes {
     pub data: Vec<Ticker>,
 }
 
-impl From<&RawTickerRes> for TickerRes {
-    fn from(value: &RawTickerRes) -> Self {
-        Self {
-            data: value.data.iter().map(Ticker::from).collect::<Vec<Ticker>>(),
+impl TryFrom<&RawTickerRes> for TickerRes {
+    type Error = ApiError;
+
+    fn try_from(value: &RawTickerRes) -> Result<Self, Self::Error> {
+        let mut data = vec![];
+
+        for ticker_data in &value.data {
+            data.push(Ticker::try_from(ticker_data)?);
         }
+
+        Ok(Self { data })
     }
 }
 
-impl From<RawTickerRes> for TickerRes {
-    fn from(value: RawTickerRes) -> Self {
-        Self {
-            data: value.data.iter().map(Ticker::from).collect::<Vec<Ticker>>(),
+impl TryFrom<RawTickerRes> for TickerRes {
+    type Error = ApiError;
+
+    fn try_from(value: RawTickerRes) -> Result<Self, Self::Error> {
+        let mut data = vec![];
+
+        for ticker_data in &value.data {
+            data.push(Ticker::try_from(ticker_data)?);
         }
+
+        Ok(Self { data })
     }
 }
