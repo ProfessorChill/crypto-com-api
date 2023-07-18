@@ -51,9 +51,9 @@ necessary.
 | `public/get-ticker`              | :white_check_mark: |                                      |
 | `public/get-trades`              | :white_check_mark: |                                      |
 | `private/create-withdrawal`      | :warning:          | Requires the tester to pay per test. |
-| `private/get-currency-networks`  | :x:                |                                      |
-| `private/get-withdrawal-history` | :x:                |                                      |
-| `private/get-deposit-history`    | :x:                |                                      |
+| `private/get-currency-networks`  | :warning:          | Untested.                            |
+| `private/get-withdrawal-history` | :warning:          | Untested.                            |
+| `private/get-deposit-history`    | :warning:          | Untested.                            |
 | `private/get-deposit-address`    | :x:                |                                      |
 | `private/get-account-summary`    | :x:                |                                      |
 | `private/create-order`           | :x:                |                                      |
