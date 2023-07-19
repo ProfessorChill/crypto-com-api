@@ -125,7 +125,7 @@ pub async fn message_to_api_response(
             drop(tx);
 
             ApiResponse {
-                method: "ping".to_owned(),
+                method: Some("ping".to_owned()),
                 ..Default::default()
             }
         }

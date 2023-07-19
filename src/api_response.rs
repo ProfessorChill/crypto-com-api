@@ -10,7 +10,7 @@ pub struct ApiResponse<T> {
     /// Original request identifier.
     pub id: i64,
     /// Method invoked.
-    pub method: String,
+    pub method: Option<String>,
     /// Result object.
     pub result: Option<T>,
     /// 0 for success, see docs for a
@@ -32,7 +32,7 @@ impl<T> Default for ApiResponse<T> {
     fn default() -> Self {
         Self {
             id: -1,
-            method: String::new(),
+            method: None,
             result: None,
             code: None,
             message: None,

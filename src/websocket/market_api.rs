@@ -230,7 +230,11 @@ pub async fn process_market(
     data_tx: DataSender,
 ) -> Result<()> {
     let msg = message_to_api_response(&market_tx, &message).await?;
-    let method = msg.method.as_str();
+    let method = if let Some(ref method) = msg.method {
+        method.as_str()
+    } else {
+        ""
+    };
     let res = msg.result.clone();
 
     match method {

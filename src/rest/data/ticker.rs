@@ -20,7 +20,7 @@ pub struct RawTicker {
     /// The total 24h traded volume value (in USD).
     pub vv: String,
     /// The open interest.
-    pub oi: String,
+    pub oi: Option<String>,
     /// 24-hour price change, null if there weren't any trades.
     pub c: Option<String>,
     /// The current best bid price, null if there weren't any bids.
@@ -54,7 +54,7 @@ pub struct Ticker {
     /// The total 24h traded volume value (in USD).
     pub vv: f64,
     /// The open interest.
-    pub oi: f64,
+    pub oi: Option<f64>,
     /// 24-hour price change, null if there weren't any trades.
     pub c: Option<f64>,
     /// The current best bid price, null if there weren't any bids.
@@ -88,7 +88,11 @@ impl TryFrom<&RawTicker> for Ticker {
             i: value.i.clone(),
             v: value.v.parse::<f64>()?,
             vv: value.vv.parse::<f64>()?,
-            oi: value.oi.parse::<f64>()?,
+            oi: if let Some(ref oi) = value.oi {
+                Some(oi.parse::<f64>()?)
+            } else {
+                None
+            },
             c: if let Some(ref c) = value.c {
                 Some(c.parse::<f64>()?)
             } else {
