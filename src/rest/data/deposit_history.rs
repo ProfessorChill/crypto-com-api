@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 /// Deposit history params.
 #[derive(Serialize, Debug)]
-pub struct DeposityHistoryParams {
+pub struct DepositHistoryParams {
     /// e.g. BTC, CRO.
     pub currency: Option<String>,
     /// Default is 90 days from current timestamp.

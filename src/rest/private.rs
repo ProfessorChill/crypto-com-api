@@ -5,8 +5,10 @@ use serde::Serialize;
 
 use crate::prelude::ApiError;
 use crate::rest::data::{
+    account_summary::{AccountSummary, AccountSummaryParams},
     currency_networks::CurrencyNetworks,
-    deposit_history::{DepositHistory, DeposityHistoryParams},
+    deposit_address::{DepositAddress, DepositAddressParams},
+    deposit_history::{DepositHistory, DepositHistoryParams},
     withdrawal_history::WithdrawalHistory,
     CreateWithdrawalRes,
 };
@@ -98,7 +100,7 @@ pub async fn create_withdrawal(
 /// # Errors
 ///
 /// Will return [`reqwest::Error`] if send fails or if serialization fails.
-pub async fn get_currency_networks(config: &mut Config) -> Result<ApiResponse<CurrencyNetworks>> {
+pub async fn get_currency_networks(config: &Config) -> Result<ApiResponse<CurrencyNetworks>> {
     let client = reqwest::Client::new();
 
     let Some(ref rest_url) = config.rest_url else {
@@ -139,7 +141,7 @@ pub async fn get_currency_networks(config: &mut Config) -> Result<ApiResponse<Cu
 ///
 /// Will return [`reqwest::Error`] if send fails or if serialization fails.
 pub async fn get_withdrawal_history(
-    config: &mut Config,
+    config: &Config,
     params: GetWithdrawalHistoryParams,
 ) -> Result<ApiResponse<WithdrawalHistory>> {
     let client = reqwest::Client::new();
@@ -183,8 +185,8 @@ pub async fn get_withdrawal_history(
 ///
 /// Will return [`reqwest::Error`] if send fails or if serialization fails.
 pub async fn get_deposit_history(
-    config: &mut Config,
-    params: DeposityHistoryParams,
+    config: &Config,
+    params: DepositHistoryParams,
 ) -> Result<ApiResponse<DepositHistory>> {
     let client = reqwest::Client::new();
 
@@ -214,6 +216,92 @@ pub async fn get_deposit_history(
         .send()
         .await?
         .json::<ApiResponse<DepositHistory>>()
+        .await?;
+
+    Ok(res)
+}
+
+/// Fetches deposit address. Withdrawal setting must be enabled for your
+/// API Key. If you do not see the option when viewing your API Keys, this
+/// feature is not yet available for you.
+///
+/// # Errors
+///
+/// Will return [`reqwest::Error`] if send fails or if serialization fails.
+pub async fn get_deposit_address(
+    config: &Config,
+    params: DepositAddressParams,
+) -> Result<ApiResponse<DepositAddress>> {
+    let client = reqwest::Client::new();
+
+    let Some(ref rest_url) = config.rest_url else {
+        anyhow::bail!(ApiError::ConfigMissing("rest_url".to_owned()));
+    };
+
+    let Some(ref api_key) = config.api_key else {
+        anyhow::bail!(ApiError::ConfigMissing("api_key".to_owned()));
+    };
+
+    let Some(ref secret) = config.secret_key else {
+        anyhow::bail!(ApiError::ConfigMissing("secret_key".to_owned()));
+    };
+
+    let req = ApiRequestBuilder::default()
+        .with_id(0)
+        .with_method("private/get-deposit-address")
+        .with_params(params)
+        .with_api_key(api_key)
+        .with_digital_signature(secret)
+        .build()?;
+
+    let res = client
+        .post(rest_url.to_string())
+        .body(serde_json::to_string(&req)?)
+        .send()
+        .await?
+        .json::<ApiResponse<DepositAddress>>()
+        .await?;
+
+    Ok(res)
+}
+
+/// Returns the account balance of a user for a particular token.
+///
+/// # Errors
+///
+/// Will return [`reqwest::Error`] if send fails or if serialization fails.
+pub async fn get_account_summary(
+    config: &Config,
+    params: AccountSummaryParams,
+) -> Result<ApiResponse<AccountSummary>> {
+    let client = reqwest::Client::new();
+
+    let Some(ref rest_url) = config.rest_url else {
+        anyhow::bail!(ApiError::ConfigMissing("rest_url".to_owned()));
+    };
+
+    let Some(ref api_key) = config.api_key else {
+        anyhow::bail!(ApiError::ConfigMissing("api_key".to_owned()));
+    };
+
+    let Some(ref secret) = config.secret_key else {
+        anyhow::bail!(ApiError::ConfigMissing("secret_key".to_owned()));
+    };
+
+    let req = ApiRequestBuilder::default()
+        .with_id(0)
+        .with_method("private/get-account-summary")
+        .with_params(params)
+        .with_api_key(api_key)
+        .with_digital_signature(secret)
+        .build()?;
+
+    let res = client
+        .post(rest_url.to_string())
+        .body(serde_json::to_string(&req)?)
+        .send()
+        .await?
+        .json::<ApiResponse<AccountSummary>>()
         .await?;
 
     Ok(res)

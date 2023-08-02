@@ -54,8 +54,8 @@ necessary.
 | `private/get-currency-networks`  | :warning:          | Untested.                            |
 | `private/get-withdrawal-history` | :warning:          | Untested.                            |
 | `private/get-deposit-history`    | :warning:          | Untested.                            |
-| `private/get-deposit-address`    | :x:                |                                      |
-| `private/get-account-summary`    | :x:                |                                      |
+| `private/get-deposit-address`    | :warning:          | Untested.                            |
+| `private/get-account-summary`    | :warning:          | Untested.                            |
 | `private/create-order`           | :x:                |                                      |
 | `private/cancel-order`           | :x:                |                                      |
 | `private/create-order-list`      | :x:                |                                      |
@@ -92,6 +92,8 @@ SECRET_KEY=YOUR_SECRET_KEY
 
 ## TODO
 
-Add tests that should panic to data types.
+Merge duplicate tests.
 
 Create the REST routes, add tests, and finalize that section.
+
+Add tests that should panic to data types.

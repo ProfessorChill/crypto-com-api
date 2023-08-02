@@ -37,5 +37,6 @@ pub struct WithdrawalHistoryItem {
 /// Withdrawal result.
 #[derive(Deserialize, Debug)]
 pub struct WithdrawalHistory {
+    /// Array of withdrawal items.
     pub withdrawal_list: Vec<WithdrawalHistoryItem>,
 }
