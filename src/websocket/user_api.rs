@@ -73,7 +73,7 @@ pub async fn initialize_user_stream(
         anyhow::bail!(ApiError::ConfigMissing("websocket_user_api".to_owned()));
     };
 
-    let (user_stream, _) = connect_async(websocket_user_api).await?;
+    let (user_stream, _) = connect_async(websocket_user_api.to_string()).await?;
     log::info!("WebSocket User API handshake has been successfully completed.");
 
     {

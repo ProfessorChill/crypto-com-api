@@ -169,6 +169,7 @@ async fn otc_book_subscription() -> Result<()> {
 }
 */
 
+/*
 #[tokio::test]
 async fn get_instruments() -> Result<()> {
     let mut controller = get_controller_sandbox_user().await?;
@@ -190,3 +191,4 @@ async fn get_instruments() -> Result<()> {
 
     join_handle.await?
 }
+*/

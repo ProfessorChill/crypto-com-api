@@ -82,7 +82,7 @@ pub async fn initialize_market_stream(
         anyhow::bail!("websocket_market_api");
     };
 
-    let (market_stream, _) = connect_async(websocket_market_api).await?;
+    let (market_stream, _) = connect_async(websocket_market_api.to_string()).await?;
     log::info!("WebSocket Market API handshake has been successfully completed.");
 
     {
