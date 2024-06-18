@@ -3,7 +3,7 @@
 use serde::Deserialize;
 
 /// Account data.
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct Account {
     /// Total balance.
     pub balance: f64,
