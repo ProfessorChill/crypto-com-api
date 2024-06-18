@@ -3,7 +3,7 @@
 use serde::Deserialize;
 
 /// Create order list item.
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct CreateOrderListItem {
     /// The index of corresponding order request (Start from 0).
     pub index: u64,

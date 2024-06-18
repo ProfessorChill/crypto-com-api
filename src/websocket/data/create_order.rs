@@ -3,7 +3,7 @@
 use serde::Deserialize;
 
 /// Create order response.
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct CreateOrder {
     /// Newly created order ID.
     pub order_id: u64,

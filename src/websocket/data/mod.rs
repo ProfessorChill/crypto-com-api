@@ -45,7 +45,7 @@ pub use user_trade::*;
 pub use withdrawal_history::*;
 
 /// Order item (used in many order sections).
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct OrderItem {
     /// ACTIVE, CANCELED, FILLED, REJECTED or EXPIRED.
     pub status: String,

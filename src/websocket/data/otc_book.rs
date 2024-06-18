@@ -30,7 +30,7 @@ pub struct RawOtcBook {
 ///     Expiry time of the level (milliseconds since the Unix epoch),
 ///     Unique ID of the level,
 /// )
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct OtcBook {
     /// Array of level
     pub bids: Vec<(f64, u64, u64, u64, u64)>,

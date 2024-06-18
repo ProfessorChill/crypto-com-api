@@ -5,7 +5,7 @@ use serde::Deserialize;
 use crate::websocket::data::OrderItem;
 
 /// Order history.
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct OpenOrders {
     /// Total count of orders.
     pub count: u64,

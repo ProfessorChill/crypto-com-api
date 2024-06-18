@@ -3,7 +3,7 @@
 use serde::Deserialize;
 
 /// Trade list item.
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct TradeListItem {
     /// BUY, SELL.
     pub side: String,

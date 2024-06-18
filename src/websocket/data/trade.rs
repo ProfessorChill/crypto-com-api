@@ -22,7 +22,7 @@ pub struct RawTrade {
 }
 
 /// The procesed trade response data.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Trade {
     /// Side (buy or sell).
     pub s: String,

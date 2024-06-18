@@ -18,7 +18,7 @@ pub struct Account {
 }
 
 /// Account summary.
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct AccountSummary {
     /// An array of accounts.
     pub accounts: Vec<Account>,

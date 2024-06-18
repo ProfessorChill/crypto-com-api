@@ -49,7 +49,7 @@ pub struct RawTickerRes {
 }
 
 /// The ticker data response.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Ticker {
     /// Price of the 24h highest trade.
     pub h: Option<f64>,

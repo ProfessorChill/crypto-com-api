@@ -39,7 +39,7 @@ pub struct RawUserTradeRes {
 }
 
 /// Processed version of [`RawUserTrade`].
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct UserTrade {
     /// BUY, SELL.
     pub side: String,

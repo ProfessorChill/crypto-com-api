@@ -34,7 +34,7 @@ pub struct RawBook {
 ///     Total size of the level,
 ///     Number of standing orders in the level,
 /// )
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Book {
     /// Array of level.
     pub bids: Vec<(f64, f64, u64)>,

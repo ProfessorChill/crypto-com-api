@@ -5,7 +5,7 @@ use serde::Deserialize;
 use crate::websocket::data::OrderItem;
 
 /// Trade list item.
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct OrderDetailTradeListItem {
     /// BUY, SELL.
     pub side: String,

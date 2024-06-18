@@ -24,7 +24,7 @@ pub struct RawCandlestick {
 }
 
 /// The processed Candlestick data response.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Candlestick {
     /// Start time of candlestick (Unix timestamp).
     pub t: u64,

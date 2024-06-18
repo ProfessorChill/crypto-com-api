@@ -3,7 +3,7 @@
 use serde::Deserialize;
 
 /// Withdrawal list item.
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct WithdrawalItem {
     /// Newly created withdrawal ID.
     pub id: u64,
